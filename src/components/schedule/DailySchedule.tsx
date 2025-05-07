@@ -4,15 +4,18 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Check, Clock, Edit, Plus, Trash2, X } from "lucide-react";
+import { Check, Clock, Edit, Plus, Trash2, X, Bell, BellOff } from "lucide-react";
 import { format, parse } from "date-fns";
 import { cn } from "@/lib/utils";
+import { Switch } from "@/components/ui/switch";
+import { toast } from "@/components/ui/use-toast";
 
 interface ScheduleItem {
   id: string;
   time: string; // Format: "HH:mm"
   description: string;
   completed: boolean;
+  notification: boolean;
 }
 
 const compareTime = (a: ScheduleItem, b: ScheduleItem) => {
@@ -26,21 +29,26 @@ const compareTime = (a: ScheduleItem, b: ScheduleItem) => {
   return timeA[1] - timeB[1]; // Compare minutes
 };
 
-const DailySchedule = () => {
+interface DailyScheduleProps {
+  notificationsEnabled?: boolean;
+}
+
+const DailySchedule = ({ notificationsEnabled = true }: DailyScheduleProps) => {
   const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([
-    { id: "1", time: "06:00", description: "Wake up", completed: true },
-    { id: "2", time: "07:00", description: "Morning workout", completed: false },
-    { id: "3", time: "08:00", description: "Breakfast", completed: false },
-    { id: "4", time: "12:00", description: "Lunch", completed: false },
-    { id: "5", time: "15:00", description: "Take supplements", completed: false },
-    { id: "6", time: "18:00", description: "Dinner", completed: false },
-    { id: "7", time: "22:00", description: "Sleep", completed: false },
+    { id: "1", time: "06:00", description: "Wake up", completed: true, notification: true },
+    { id: "2", time: "07:00", description: "Morning workout", completed: false, notification: true },
+    { id: "3", time: "08:00", description: "Breakfast", completed: false, notification: true },
+    { id: "4", time: "12:00", description: "Lunch", completed: false, notification: true },
+    { id: "5", time: "15:00", description: "Take supplements", completed: false, notification: true },
+    { id: "6", time: "18:00", description: "Dinner", completed: false, notification: true },
+    { id: "7", time: "22:00", description: "Sleep", completed: false, notification: true },
   ]);
   
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<ScheduleItem | null>(null);
   const [newItemTime, setNewItemTime] = useState("");
   const [newItemDesc, setNewItemDesc] = useState("");
+  const [newItemNotification, setNewItemNotification] = useState(true);
   
   const handleAddOrUpdateItem = () => {
     if (!newItemTime || !newItemDesc) return;
@@ -50,10 +58,13 @@ const DailySchedule = () => {
       setScheduleItems(prev => 
         prev.map(item => 
           item.id === editingItem.id 
-            ? { ...item, time: newItemTime, description: newItemDesc }
+            ? { ...item, time: newItemTime, description: newItemDesc, notification: newItemNotification }
             : item
         ).sort(compareTime)
       );
+      toast({
+        description: "Schedule item updated successfully",
+      });
     } else {
       // Add new item
       const newItem: ScheduleItem = {
@@ -61,9 +72,13 @@ const DailySchedule = () => {
         time: newItemTime,
         description: newItemDesc,
         completed: false,
+        notification: newItemNotification,
       };
       
       setScheduleItems(prev => [...prev, newItem].sort(compareTime));
+      toast({
+        description: "New schedule item added",
+      });
     }
     
     resetAndCloseDialog();
@@ -73,11 +88,16 @@ const DailySchedule = () => {
     setEditingItem(item);
     setNewItemTime(item.time);
     setNewItemDesc(item.description);
+    setNewItemNotification(item.notification);
     setDialogOpen(true);
   };
   
   const deleteItem = (id: string) => {
     setScheduleItems(prev => prev.filter(item => item.id !== id));
+    toast({
+      description: "Schedule item deleted",
+      variant: "destructive",
+    });
   };
   
   const toggleItemCompleted = (id: string) => {
@@ -87,11 +107,20 @@ const DailySchedule = () => {
       )
     );
   };
+
+  const toggleItemNotification = (id: string) => {
+    setScheduleItems(prev => 
+      prev.map(item => 
+        item.id === id ? { ...item, notification: !item.notification } : item
+      )
+    );
+  };
   
   const resetAndCloseDialog = () => {
     setEditingItem(null);
     setNewItemTime("");
     setNewItemDesc("");
+    setNewItemNotification(true);
     setDialogOpen(false);
   };
   
@@ -145,6 +174,19 @@ const DailySchedule = () => {
                 onChange={(e) => setNewItemDesc(e.target.value)}
               />
             </div>
+
+            <div className="flex items-center justify-between">
+              <label htmlFor="notification" className="text-sm font-medium flex items-center gap-2">
+                <Bell className="h-4 w-4" />
+                Enable Notification
+              </label>
+              <Switch
+                id="notification"
+                checked={newItemNotification}
+                onCheckedChange={setNewItemNotification}
+                disabled={!notificationsEnabled}
+              />
+            </div>
           </div>
           
           <div className="flex justify-between">
@@ -173,14 +215,18 @@ const DailySchedule = () => {
             <CardContent className="p-4 flex">
               <div className="mr-4 relative">
                 <div className={cn(
-                  "h-8 w-8 rounded-full border flex items-center justify-center relative z-10",
+                  "h-8 w-8 rounded-full border flex items-center justify-center relative z-10 cursor-pointer",
                   item.completed 
-                    ? "bg-mint border-mint text-white"
+                    ? "bg-primary border-primary text-white"
                     : "bg-card border-muted"
                 )}
                 onClick={() => toggleItemCompleted(item.id)}
                 >
-                  <Clock className="h-4 w-4" />
+                  {item.completed ? (
+                    <Check className="h-4 w-4" />
+                  ) : (
+                    <Clock className="h-4 w-4" />
+                  )}
                 </div>
               </div>
               
@@ -199,6 +245,22 @@ const DailySchedule = () => {
                   </div>
                   
                   <div className="flex gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={cn(
+                        "h-8 w-8 p-0",
+                        !notificationsEnabled && "opacity-50 cursor-not-allowed"
+                      )}
+                      disabled={!notificationsEnabled}
+                      onClick={() => toggleItemNotification(item.id)}
+                      title={item.notification ? "Turn off notification" : "Turn on notification"}
+                    >
+                      {item.notification ? 
+                        <Bell className="h-4 w-4" /> : 
+                        <BellOff className="h-4 w-4" />
+                      }
+                    </Button>
                     <Button
                       variant="ghost"
                       size="sm"

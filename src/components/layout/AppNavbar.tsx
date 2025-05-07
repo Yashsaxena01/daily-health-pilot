@@ -1,6 +1,6 @@
 
 import { Link } from "react-router-dom";
-import { Calendar, Heart, Home, List, Weight } from "lucide-react";
+import { Activity, Home, List, Heart, Weight } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
@@ -8,11 +8,10 @@ const AppNavbar = () => {
   const location = useLocation();
   
   const navItems = [
-    { icon: Home, label: "Dashboard", path: "/" },
+    { icon: Home, label: "Home", path: "/" },
     { icon: Weight, label: "Weight", path: "/weight" },
     { icon: Heart, label: "Food", path: "/food" },
-    { icon: List, label: "Schedule", path: "/schedule" },
-    { icon: Calendar, label: "History", path: "/history" },
+    { icon: Activity, label: "Schedule", path: "/schedule" },
   ];
 
   return (

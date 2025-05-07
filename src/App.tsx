@@ -9,8 +9,8 @@ import Dashboard from "./pages/Dashboard";
 import Weight from "./pages/Weight";
 import Food from "./pages/Food";
 import Schedule from "./pages/Schedule";
-import History from "./pages/History";
 import NotFound from "./pages/NotFound";
+import Index from "./pages/Index";
 
 const queryClient = new QueryClient();
 
@@ -20,13 +20,13 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <div className="min-h-screen bg-offwhite">
+        <div className="min-h-screen bg-background">
           <Routes>
-            <Route path="/" element={<Dashboard />} />
+            <Route path="/" element={<Index />} />
+            <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/weight" element={<Weight />} />
             <Route path="/food" element={<Food />} />
             <Route path="/schedule" element={<Schedule />} />
-            <Route path="/history" element={<History />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           <AppNavbar />
