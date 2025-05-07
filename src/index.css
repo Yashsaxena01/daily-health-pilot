@@ -57,6 +57,10 @@
     overflow-y: auto;
   }
 
+  html {
+    scroll-behavior: smooth;
+  }
+
   /* Custom scrollbar for webkit browsers */
   ::-webkit-scrollbar {
     @apply w-2 h-2;

@@ -1,18 +1,12 @@
 
 import { useState } from "react";
 import PageContainer from "@/components/layout/PageContainer";
-import MealTracker from "@/components/food/MealTracker";
+import MealPlanner from "@/components/food/MealPlanner";
 import EliminationDiet from "@/components/food/EliminationDiet";
+import FoodSummary from "@/components/food/FoodSummary";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Utensils, AlertCircle } from "lucide-react";
+import { Calendar, AlertCircle, BarChart, Utensils } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
-// Extend the props for EliminationDiet component to accept colorCoding
-declare module "@/components/food/EliminationDiet" {
-  interface EliminationDietProps {
-    colorCoding?: boolean;
-  }
-}
 
 const Food = () => {
   // Force scroll to top when the component mounts
@@ -52,20 +46,28 @@ const Food = () => {
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="meals" className="pb-20">
-        <TabsList className="grid w-full grid-cols-2 mb-4">
+      <Tabs defaultValue="summary" className="pb-20">
+        <TabsList className="grid w-full grid-cols-3 mb-4">
+          <TabsTrigger value="summary" className="flex items-center gap-2">
+            <BarChart className="h-4 w-4" />
+            Summary
+          </TabsTrigger>
           <TabsTrigger value="meals" className="flex items-center gap-2">
             <Utensils className="h-4 w-4" />
             Meal Planner
           </TabsTrigger>
           <TabsTrigger value="elimination" className="flex items-center gap-2">
-            <AlertCircle className="h-4 w-4" />
+            <Calendar className="h-4 w-4" />
             Elimination Diet
           </TabsTrigger>
         </TabsList>
         
+        <TabsContent value="summary">
+          <FoodSummary />
+        </TabsContent>
+        
         <TabsContent value="meals">
-          <MealTracker />
+          <MealPlanner />
         </TabsContent>
         
         <TabsContent value="elimination">
