@@ -5,7 +5,7 @@ import DailySchedule from "@/components/schedule/DailySchedule";
 import ActivityTracker from "@/components/activity/ActivityTracker";
 import WorkoutCalendar from "@/components/activity/WorkoutCalendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Activity, Bell, Calendar, Clock, BellOff } from "lucide-react";
+import { Activity, Bell, Calendar, Clock, BellOff, Utensils } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -56,7 +56,7 @@ const Schedule = () => {
           </div>
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2">
-              <Heart className="h-4 w-4 text-primary" />
+              <Utensils className="h-4 w-4 text-primary" />
               <span>Meal Reminders</span>
             </div>
             <Switch 

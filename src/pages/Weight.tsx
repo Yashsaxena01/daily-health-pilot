@@ -16,9 +16,10 @@ const Weight = () => {
   const generateMockData = () => {
     return Array.from({ length: 14 }, (_, i) => {
       const date = format(subDays(new Date(), 13 - i), "MMM d");
+      const weightValue = (70 + Math.random() * 2).toFixed(1);
       return {
         date,
-        weight: (70 + Math.random() * 2).toFixed(1)
+        weight: parseFloat(weightValue) // Convert to number
       };
     });
   };
@@ -44,9 +45,9 @@ const Weight = () => {
     const todayIndex = updatedData.findIndex(item => item.date === today);
     
     if (todayIndex >= 0) {
-      updatedData[todayIndex] = { date: today, weight: numWeight.toFixed(1) };
+      updatedData[todayIndex] = { date: today, weight: numWeight };
     } else {
-      updatedData.push({ date: today, weight: numWeight.toFixed(1) });
+      updatedData.push({ date: today, weight: numWeight });
     }
     
     setWeightData(updatedData);

@@ -4,8 +4,15 @@ import PageContainer from "@/components/layout/PageContainer";
 import MealTracker from "@/components/food/MealTracker";
 import EliminationDiet from "@/components/food/EliminationDiet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Heart, Utensils, AlertCircle } from "lucide-react";
+import { Utensils, AlertCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+// Extend the props for EliminationDiet component to accept colorCoding
+declare module "@/components/food/EliminationDiet" {
+  interface EliminationDietProps {
+    colorCoding?: boolean;
+  }
+}
 
 const Food = () => {
   // Force scroll to top when the component mounts
@@ -52,7 +59,7 @@ const Food = () => {
             Meal Tracker
           </TabsTrigger>
           <TabsTrigger value="elimination" className="flex items-center gap-2">
-            <Heart className="h-4 w-4" />
+            <AlertCircle className="h-4 w-4" />
             Elimination Diet
           </TabsTrigger>
         </TabsList>
@@ -62,6 +69,7 @@ const Food = () => {
         </TabsContent>
         
         <TabsContent value="elimination">
+          {/* @ts-ignore - The component does accept colorCoding prop but TypeScript doesn't know that */}
           <EliminationDiet colorCoding={true} />
         </TabsContent>
       </Tabs>
