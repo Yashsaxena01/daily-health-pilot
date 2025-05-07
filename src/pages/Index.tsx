@@ -4,12 +4,15 @@ import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import PageContainer from "@/components/layout/PageContainer";
-import { ArrowRight, Activity, Weight, Utensils, Calendar } from "lucide-react";
+import { ArrowRight, Activity, Weight, Utensils, Calendar, Plus, Check } from "lucide-react";
 import WeightGraph from "@/components/weight/WeightGraph";
+import { format, subDays } from "date-fns";
+import { Input } from "@/components/ui/input";
+import { toast } from "@/components/ui/use-toast";
 
 const Index = () => {
   // Mock weight data for the chart
-  const [weightData] = useState([
+  const [weightData, setWeightData] = useState([
     { date: "May 1", weight: 72.5 },
     { date: "May 2", weight: 72.3 },
     { date: "May 3", weight: 72.1 },
@@ -18,6 +21,46 @@ const Index = () => {
     { date: "May 6", weight: 71.8 },
     { date: "May 7", weight: 71.6 },
   ]);
+
+  const [weight, setWeight] = useState("");
+
+  const handleAddWeight = () => {
+    if (!weight) return;
+    
+    const numWeight = parseFloat(weight);
+    if (isNaN(numWeight)) return;
+    
+    const today = format(new Date(), "MMM d");
+    const newWeightData = [...weightData];
+    
+    // Check if we already have an entry for today
+    const todayIndex = newWeightData.findIndex(item => item.date === today);
+    
+    if (todayIndex >= 0) {
+      newWeightData[todayIndex] = { date: today, weight: numWeight };
+    } else {
+      newWeightData.push({ date: today, weight: numWeight });
+    }
+    
+    setWeightData(newWeightData);
+    setWeight("");
+    
+    toast({
+      description: "Weight added successfully.",
+    });
+  };
+
+  // Mock data for upcoming meal and food to introduce
+  const todaysFood = {
+    name: "Oats",
+    category: "Grains"
+  };
+
+  const nextMeal = {
+    type: "lunch",
+    time: "12:30 PM",
+    food: "Grilled chicken with vegetables"
+  };
 
   return (
     <PageContainer>
@@ -42,8 +85,24 @@ const Index = () => {
             </Link>
           </CardHeader>
           <CardContent>
-            <div className="h-44">
-              <WeightGraph data={weightData} />
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  step="0.1"
+                  placeholder="Enter your weight"
+                  value={weight}
+                  onChange={e => setWeight(e.target.value)}
+                  className="flex-1"
+                />
+                <Button onClick={handleAddWeight} className="flex-shrink-0">
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add
+                </Button>
+              </div>
+              <div className="h-44">
+                <WeightGraph data={weightData} />
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -63,16 +122,32 @@ const Index = () => {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="bg-secondary p-4 rounded-lg">
-                <h3 className="font-medium mb-2">Today's Meals</h3>
-                <p className="text-sm text-muted-foreground">
-                  Log your meals and track your nutrition
-                </p>
+                <h3 className="font-medium mb-2">Food to Introduce Today</h3>
+                {todaysFood ? (
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="text-sm">{todaysFood.name}</p>
+                      <p className="text-xs text-muted-foreground">{todaysFood.category}</p>
+                    </div>
+                    <Button variant="outline" size="sm" className="h-8 w-8 p-0">
+                      <Check className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No food scheduled for introduction today</p>
+                )}
               </div>
+              
               <div className="bg-secondary p-4 rounded-lg">
-                <h3 className="font-medium mb-2">Elimination Diet</h3>
-                <p className="text-sm text-muted-foreground">
-                  Manage your food reintroduction
-                </p>
+                <h3 className="font-medium mb-2">Next Meal</h3>
+                {nextMeal ? (
+                  <div>
+                    <p className="text-sm font-medium capitalize">{nextMeal.type} ({nextMeal.time})</p>
+                    <p className="text-sm">{nextMeal.food}</p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No upcoming meals planned</p>
+                )}
               </div>
             </div>
           </CardContent>

@@ -5,12 +5,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import WeightGraph from "@/components/weight/WeightGraph";
-import { Plus, ArrowLeft, ArrowRight, Weight as WeightIcon } from "lucide-react";
+import { Plus, ArrowLeft, ArrowRight, Weight as WeightIcon, Calendar } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
-import { format, subDays } from "date-fns";
+import { format, subDays, parse, isValid } from "date-fns";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 
 const Weight = () => {
   const [weight, setWeight] = useState("");
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   
   // Generate mock data
   const generateMockData = () => {
@@ -38,23 +41,30 @@ const Weight = () => {
     const numWeight = parseFloat(weight);
     if (isNaN(numWeight)) return;
     
-    const today = format(new Date(), "MMM d");
+    const dateStr = selectedDate ? format(selectedDate, "MMM d") : format(new Date(), "MMM d");
     
-    // Check if we already have an entry for today
+    // Check if we already have an entry for this date
     const updatedData = [...weightData];
-    const todayIndex = updatedData.findIndex(item => item.date === today);
+    const dateIndex = updatedData.findIndex(item => item.date === dateStr);
     
-    if (todayIndex >= 0) {
-      updatedData[todayIndex] = { date: today, weight: numWeight };
+    if (dateIndex >= 0) {
+      updatedData[dateIndex] = { date: dateStr, weight: numWeight };
     } else {
-      updatedData.push({ date: today, weight: numWeight });
+      updatedData.push({ date: dateStr, weight: numWeight });
     }
+    
+    // Sort the data by date
+    updatedData.sort((a, b) => {
+      const dateA = parse(a.date, "MMM d", new Date());
+      const dateB = parse(b.date, "MMM d", new Date());
+      return dateA.getTime() - dateB.getTime();
+    });
     
     setWeightData(updatedData);
     setWeight("");
     
     toast({
-      description: "Weight recorded successfully.",
+      description: `Weight recorded for ${dateStr}.`,
     });
   };
 
@@ -70,18 +80,36 @@ const Weight = () => {
 
       <Card className="mb-6 border-primary/10">
         <CardContent className="pt-6">
-          <div className="flex items-center gap-3">
-            <Input
-              type="number"
-              step="0.1"
-              placeholder="Enter your weight"
-              value={weight}
-              onChange={e => setWeight(e.target.value)}
-              className="flex-1"
-            />
-            <Button onClick={handleAddWeight} className="flex-shrink-0">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+            <div className="w-full sm:flex-1">
+              <Input
+                type="number"
+                step="0.1"
+                placeholder="Enter your weight"
+                value={weight}
+                onChange={e => setWeight(e.target.value)}
+                className="w-full"
+              />
+            </div>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-full sm:w-auto flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  {selectedDate ? format(selectedDate, "MMM d, yyyy") : "Select date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="p-0" align="start">
+                <CalendarComponent
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={setSelectedDate}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+            <Button onClick={handleAddWeight} className="w-full sm:w-auto">
               <Plus className="h-4 w-4 mr-1" />
-              Add
+              Add Weight
             </Button>
           </div>
         </CardContent>
