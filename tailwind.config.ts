@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -61,7 +62,26 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
-				}
+				},
+				// Health app specific colors
+				teal: {
+					light: '#4ECDC4',
+					DEFAULT: '#1A535C',
+					dark: '#0F3C42',
+				},
+				coral: {
+					DEFAULT: '#FF6B6B',
+					light: '#FF8E8E',
+				},
+				mint: {
+					DEFAULT: '#2EC4B6',
+				},
+				warning: {
+					DEFAULT: '#FFE66D',
+				},
+				offwhite: {
+					DEFAULT: '#F7FFF7',
+				},
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
