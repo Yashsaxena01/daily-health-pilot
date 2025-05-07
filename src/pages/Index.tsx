@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import PageContainer from "@/components/layout/PageContainer";
-import { ArrowRight, Activity, Weight, Heart, Calendar } from "lucide-react";
+import { ArrowRight, Activity, Weight, Utensils, Calendar } from "lucide-react";
 import WeightGraph from "@/components/weight/WeightGraph";
 
 const Index = () => {
@@ -28,8 +28,8 @@ const Index = () => {
         </p>
       </div>
 
-      <div className="grid gap-6">
-        <Card className="border-primary/10">
+      <div className="grid gap-6 pb-24">
+        <Card className="border-accent/20">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-xl font-medium flex items-center">
               <Weight className="mr-2 h-5 w-5" />
@@ -48,10 +48,10 @@ const Index = () => {
           </CardContent>
         </Card>
 
-        <Card className="border-primary/10">
+        <Card className="border-accent/20">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-xl font-medium flex items-center">
-              <Heart className="mr-2 h-5 w-5" />
+              <Utensils className="mr-2 h-5 w-5" />
               Food Tracking
             </CardTitle>
             <Link to="/food">
@@ -78,7 +78,7 @@ const Index = () => {
           </CardContent>
         </Card>
 
-        <Card className="border-primary/10">
+        <Card className="border-accent/20">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-xl font-medium flex items-center">
               <Activity className="mr-2 h-5 w-5" />
@@ -100,7 +100,7 @@ const Index = () => {
           </CardContent>
         </Card>
 
-        <Card className="border-primary/10">
+        <Card className="border-accent/20">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-xl font-medium flex items-center">
               <Calendar className="mr-2 h-5 w-5" />

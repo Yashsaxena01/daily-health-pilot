@@ -27,7 +27,7 @@ const Food = () => {
         <p className="text-muted-foreground">Log meals and manage your elimination diet</p>
       </div>
 
-      <Card className="mb-6 border-primary/10">
+      <Card className="mb-6 border-accent/20">
         <CardHeader className="pb-2">
           <CardTitle className="text-lg font-medium flex items-center">
             <AlertCircle className="h-5 w-5 mr-2" />
@@ -56,7 +56,7 @@ const Food = () => {
         <TabsList className="grid w-full grid-cols-2 mb-4">
           <TabsTrigger value="meals" className="flex items-center gap-2">
             <Utensils className="h-4 w-4" />
-            Meal Tracker
+            Meal Planner
           </TabsTrigger>
           <TabsTrigger value="elimination" className="flex items-center gap-2">
             <AlertCircle className="h-4 w-4" />
@@ -69,7 +69,6 @@ const Food = () => {
         </TabsContent>
         
         <TabsContent value="elimination">
-          {/* @ts-ignore - The component does accept colorCoding prop but TypeScript doesn't know that */}
           <EliminationDiet colorCoding={true} />
         </TabsContent>
       </Tabs>

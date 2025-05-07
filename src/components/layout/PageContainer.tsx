@@ -15,7 +15,7 @@ const PageContainer = ({
   return (
     <div 
       className={cn(
-        "flex flex-col min-h-screen w-full pb-20",
+        "flex flex-col w-full min-h-[calc(100vh-64px)] pb-28",
         !noPadding && "px-4 py-6", 
         className
       )}

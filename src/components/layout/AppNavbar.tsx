@@ -11,7 +11,7 @@ const AppNavbar = () => {
     { icon: Home, label: "Home", path: "/" },
     { icon: Weight, label: "Weight", path: "/weight" },
     { icon: Utensils, label: "Food", path: "/food" },
-    { icon: Activity, label: "Schedule", path: "/schedule" },
+    { icon: Calendar, label: "Schedule", path: "/schedule" },
   ];
 
   return (
@@ -26,11 +26,11 @@ const AppNavbar = () => {
               className={cn(
                 "flex flex-col items-center justify-center px-3 py-2 rounded-lg",
                 isActive 
-                  ? "text-primary" 
-                  : "text-muted-foreground hover:text-primary/80"
+                  ? "text-accent" 
+                  : "text-muted-foreground hover:text-accent/80"
               )}
             >
-              <item.icon className={cn("h-6 w-6", isActive ? "fill-primary/10" : "")} />
+              <item.icon className={cn("h-6 w-6", isActive ? "fill-accent/10" : "")} />
               <span className="text-xs mt-1">{item.label}</span>
             </Link>
           );
