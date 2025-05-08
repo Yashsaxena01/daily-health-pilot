@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,10 +10,12 @@ import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/components/ui/use-toast";
 import useLocalStorage from "@/hooks/useLocalStorage";
+import { Textarea } from "@/components/ui/textarea";
 
 interface ScheduleItem {
   id: string;
   time: string; // Format: "HH:mm"
+  title: string;
   description: string;
   completed: boolean;
   notification: boolean;
@@ -40,18 +43,25 @@ const DailySchedule = ({ notificationsEnabled = true }: DailyScheduleProps) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<ScheduleItem | null>(null);
   const [newItemTime, setNewItemTime] = useState("");
+  const [newItemTitle, setNewItemTitle] = useState("");
   const [newItemDesc, setNewItemDesc] = useState("");
   const [newItemNotification, setNewItemNotification] = useState(true);
   
   const handleAddOrUpdateItem = () => {
-    if (!newItemTime || !newItemDesc) return;
+    if (!newItemTime || !newItemTitle) return;
     
     if (editingItem) {
       // Update existing item
       setScheduleItems(prev => 
         prev.map(item => 
           item.id === editingItem.id 
-            ? { ...item, time: newItemTime, description: newItemDesc, notification: newItemNotification }
+            ? { 
+                ...item, 
+                time: newItemTime, 
+                title: newItemTitle, 
+                description: newItemDesc, 
+                notification: newItemNotification 
+              }
             : item
         ).sort(compareTime)
       );
@@ -63,6 +73,7 @@ const DailySchedule = ({ notificationsEnabled = true }: DailyScheduleProps) => {
       const newItem: ScheduleItem = {
         id: Date.now().toString(),
         time: newItemTime,
+        title: newItemTitle,
         description: newItemDesc,
         completed: false,
         notification: newItemNotification,
@@ -80,6 +91,7 @@ const DailySchedule = ({ notificationsEnabled = true }: DailyScheduleProps) => {
   const startEditItem = (item: ScheduleItem) => {
     setEditingItem(item);
     setNewItemTime(item.time);
+    setNewItemTitle(item.title);
     setNewItemDesc(item.description);
     setNewItemNotification(item.notification);
     setDialogOpen(true);
@@ -112,6 +124,7 @@ const DailySchedule = ({ notificationsEnabled = true }: DailyScheduleProps) => {
   const resetAndCloseDialog = () => {
     setEditingItem(null);
     setNewItemTime("");
+    setNewItemTitle("");
     setNewItemDesc("");
     setNewItemNotification(true);
     setDialogOpen(false);
@@ -157,14 +170,27 @@ const DailySchedule = ({ notificationsEnabled = true }: DailyScheduleProps) => {
             </div>
             
             <div className="grid gap-2">
+              <label htmlFor="title" className="text-sm font-medium">
+                Title
+              </label>
+              <Input
+                id="title"
+                placeholder="Title of this activity"
+                value={newItemTitle}
+                onChange={(e) => setNewItemTitle(e.target.value)}
+              />
+            </div>
+            
+            <div className="grid gap-2">
               <label htmlFor="description" className="text-sm font-medium">
                 Description
               </label>
-              <Input
+              <Textarea
                 id="description"
-                placeholder="What's happening at this time?"
+                placeholder="Additional details about this activity"
                 value={newItemDesc}
                 onChange={(e) => setNewItemDesc(e.target.value)}
+                rows={3}
               />
             </div>
 
@@ -188,7 +214,7 @@ const DailySchedule = ({ notificationsEnabled = true }: DailyScheduleProps) => {
             </Button>
             <Button
               onClick={handleAddOrUpdateItem}
-              disabled={!newItemTime || !newItemDesc}
+              disabled={!newItemTime || !newItemTitle}
             >
               {editingItem ? "Save Changes" : "Add to Schedule"}
             </Button>
@@ -233,8 +259,16 @@ const DailySchedule = ({ notificationsEnabled = true }: DailyScheduleProps) => {
                       "font-medium",
                       item.completed ? "line-through text-muted-foreground" : ""
                     )}>
-                      {item.description}
+                      {item.title}
                     </h3>
+                    {item.description && (
+                      <p className={cn(
+                        "text-sm text-muted-foreground mt-1",
+                        item.completed ? "line-through" : ""
+                      )}>
+                        {item.description}
+                      </p>
+                    )}
                   </div>
                   
                   <div className="flex gap-1">

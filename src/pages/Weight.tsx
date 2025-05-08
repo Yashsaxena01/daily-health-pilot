@@ -5,18 +5,22 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import WeightGraph from "@/components/weight/WeightGraph";
-import { Plus, ArrowLeft, ArrowRight, Weight as WeightIcon, Calendar } from "lucide-react";
+import { Plus, ArrowLeft, ArrowRight, Weight as WeightIcon, Calendar, Edit, Trash2 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { format, parse, isValid } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import useLocalStorage from "@/hooks/useLocalStorage";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 const Weight = () => {
   const [weight, setWeight] = useState("");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [weightData, setWeightData] = useLocalStorage<Array<{date: string, weight: number}>>("weightData", []);
   const [view, setView] = useState<"daily" | "weekly" | "monthly">("daily");
+  const [editingEntry, setEditingEntry] = useState<{index: number, date: string, weight: number} | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
   
   // Force scroll to top when the component mounts
   useState(() => {
@@ -53,6 +57,51 @@ const Weight = () => {
     
     toast({
       description: `Weight recorded for ${dateStr}.`,
+    });
+  };
+
+  const handleEditEntry = (index: number) => {
+    const entry = weightData[index];
+    setEditingEntry({
+      index,
+      date: entry.date,
+      weight: entry.weight
+    });
+    setDialogOpen(true);
+  };
+
+  const handleUpdateEntry = () => {
+    if (!editingEntry) return;
+
+    const updatedData = [...weightData];
+    updatedData[editingEntry.index] = {
+      date: editingEntry.date,
+      weight: editingEntry.weight
+    };
+
+    // Sort the data by date
+    updatedData.sort((a, b) => {
+      const dateA = parse(a.date, "MMM d", new Date());
+      const dateB = parse(b.date, "MMM d", new Date());
+      return dateA.getTime() - dateB.getTime();
+    });
+    
+    setWeightData(updatedData);
+    setEditingEntry(null);
+    setDialogOpen(false);
+    
+    toast({
+      description: `Weight updated for ${editingEntry.date}.`,
+    });
+  };
+
+  const handleDeleteEntry = (index: number) => {
+    const updatedData = weightData.filter((_, i) => i !== index);
+    setWeightData(updatedData);
+    
+    toast({
+      description: "Weight entry deleted.",
+      variant: "destructive"
     });
   };
 
@@ -103,7 +152,7 @@ const Weight = () => {
         </CardContent>
       </Card>
       
-      <Card className="border-primary/10">
+      <Card className="border-primary/10 mb-6">
         <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
           <CardTitle className="text-lg font-medium">Weight History</CardTitle>
           <div className="flex bg-secondary rounded-lg overflow-hidden">
@@ -151,6 +200,93 @@ const Weight = () => {
           )}
         </CardContent>
       </Card>
+
+      <Card className="border-primary/10 mb-6">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg font-medium">Weight History Table</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {weightData.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Weight</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {weightData.map((entry, index) => (
+                  <TableRow key={index}>
+                    <TableCell>{entry.date}</TableCell>
+                    <TableCell>{entry.weight}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-8 w-8 p-0"
+                          onClick={() => handleEditEntry(index)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-8 w-8 p-0 text-destructive hover:text-destructive/80 hover:bg-destructive/10"
+                          onClick={() => handleDeleteEntry(index)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="text-center py-6 text-muted-foreground">
+              <p>No weight entries recorded yet.</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Weight Entry</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div>
+              <label className="text-sm font-medium">Date</label>
+              <p className="mt-1">{editingEntry?.date}</p>
+            </div>
+            <div>
+              <label htmlFor="edit-weight" className="text-sm font-medium">Weight</label>
+              <Input
+                id="edit-weight"
+                type="number"
+                step="0.1"
+                value={editingEntry?.weight || ""}
+                onChange={e => {
+                  if (editingEntry) {
+                    setEditingEntry({
+                      ...editingEntry,
+                      weight: parseFloat(e.target.value) || 0
+                    });
+                  }
+                }}
+                className="mt-1"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleUpdateEntry}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </PageContainer>
   );
 };

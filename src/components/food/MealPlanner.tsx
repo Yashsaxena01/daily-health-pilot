@@ -44,15 +44,22 @@ const createInitialMealPlans = (): DayPlan[] => {
 };
 
 const MealPlanner = () => {
-  // Fix: Initialize with the result of calling createInitialMealPlans(), not the function itself
+  // Initialize with the result of calling createInitialMealPlans(), not the function itself
   const [mealPlans, setMealPlans] = useLocalStorage<DayPlan[]>("mealPlans", createInitialMealPlans());
+  
+  // Track editing state per day, including form values for each day separately
   const [editingMeal, setEditingMeal] = useState<{ dayId: string; mealId: string | null } | null>(null);
-  const [newMealTitle, setNewMealTitle] = useState("");
-  const [newMealTime, setNewMealTime] = useState("");
-  const [newMealDescription, setNewMealDescription] = useState("");
+  
+  // Store form values per day to prevent sharing across days
+  const [formValues, setFormValues] = useState<Record<string, {
+    title: string;
+    time: string;
+    description: string;
+  }>>({});
   
   const handleAddMeal = (dayId: string) => {
-    if (!newMealTime || !newMealTitle) return;
+    const dayFormValues = formValues[dayId] || { title: "", time: "", description: "" };
+    if (!dayFormValues.time || !dayFormValues.title) return;
     
     setMealPlans(prevPlans => 
       prevPlans.map(plan => 
@@ -63,9 +70,9 @@ const MealPlanner = () => {
                 ...plan.meals, 
                 {
                   id: Date.now().toString(),
-                  title: newMealTitle,
-                  time: newMealTime,
-                  description: newMealDescription,
+                  title: dayFormValues.title,
+                  time: dayFormValues.time,
+                  description: dayFormValues.description,
                   completed: false
                 }
               ].sort((a, b) => a.time.localeCompare(b.time))
@@ -74,9 +81,11 @@ const MealPlanner = () => {
       )
     );
     
-    setNewMealTitle("");
-    setNewMealTime("");
-    setNewMealDescription("");
+    // Clear only this day's form values
+    setFormValues(prev => ({
+      ...prev,
+      [dayId]: { title: "", time: "", description: "" }
+    }));
   };
   
   const handleEditMeal = (dayId: string, mealId: string) => {
@@ -84,15 +93,23 @@ const MealPlanner = () => {
     const meal = day?.meals.find(m => m.id === mealId);
     
     if (meal) {
-      setNewMealTitle(meal.title);
-      setNewMealTime(meal.time);
-      setNewMealDescription(meal.description);
+      setFormValues(prev => ({
+        ...prev,
+        [dayId]: { 
+          title: meal.title,
+          time: meal.time,
+          description: meal.description
+        }
+      }));
       setEditingMeal({ dayId, mealId });
     }
   };
   
   const handleUpdateMeal = () => {
-    if (!editingMeal || !newMealTime || !newMealTitle) return;
+    if (!editingMeal) return;
+    
+    const dayFormValues = formValues[editingMeal.dayId] || { title: "", time: "", description: "" };
+    if (!dayFormValues.time || !dayFormValues.title) return;
     
     setMealPlans(prevPlans => 
       prevPlans.map(plan => 
@@ -103,9 +120,9 @@ const MealPlanner = () => {
                 meal.id === editingMeal.mealId
                   ? { 
                       ...meal, 
-                      title: newMealTitle,
-                      time: newMealTime, 
-                      description: newMealDescription 
+                      title: dayFormValues.title,
+                      time: dayFormValues.time, 
+                      description: dayFormValues.description 
                     }
                   : meal
               ).sort((a, b) => a.time.localeCompare(b.time))
@@ -115,9 +132,11 @@ const MealPlanner = () => {
     );
     
     setEditingMeal(null);
-    setNewMealTitle("");
-    setNewMealTime("");
-    setNewMealDescription("");
+    // Clear this day's form values after update
+    setFormValues(prev => ({
+      ...prev,
+      [editingMeal.dayId]: { title: "", time: "", description: "" }
+    }));
   };
   
   const handleDeleteMeal = (dayId: string, mealId: string) => {
@@ -150,6 +169,16 @@ const MealPlanner = () => {
     );
   };
   
+  const handleInputChange = (dayId: string, field: string, value: string) => {
+    setFormValues(prev => ({
+      ...prev,
+      [dayId]: {
+        ...(prev[dayId] || { title: "", time: "", description: "" }),
+        [field]: value
+      }
+    }));
+  };
+  
   const isToday = (date: string) => {
     const today = format(new Date(), "yyyy-MM-dd");
     return date === today;
@@ -158,7 +187,11 @@ const MealPlanner = () => {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {mealPlans.map(plan => (
+        {mealPlans.map(plan => {
+          // Get form values specific to this day
+          const dayFormValues = formValues[plan.id] || { title: "", time: "", description: "" };
+          
+          return (
           <Card 
             key={plan.id} 
             className={`border-l-4 ${isToday(plan.date) ? "border-l-accent" : "border-l-transparent"}`}
@@ -244,8 +277,8 @@ const MealPlanner = () => {
                       <Label htmlFor={`edit-title-${plan.id}`}>Title</Label>
                       <Input
                         id={`edit-title-${plan.id}`}
-                        value={newMealTitle}
-                        onChange={e => setNewMealTitle(e.target.value)}
+                        value={dayFormValues.title}
+                        onChange={e => handleInputChange(plan.id, "title", e.target.value)}
                         className="mt-1"
                         placeholder="Breakfast, Lunch, Dinner, etc."
                       />
@@ -255,8 +288,8 @@ const MealPlanner = () => {
                       <Input
                         id={`edit-time-${plan.id}`}
                         type="time"
-                        value={newMealTime}
-                        onChange={e => setNewMealTime(e.target.value)}
+                        value={dayFormValues.time}
+                        onChange={e => handleInputChange(plan.id, "time", e.target.value)}
                         className="mt-1"
                       />
                     </div>
@@ -264,8 +297,8 @@ const MealPlanner = () => {
                       <Label htmlFor={`edit-description-${plan.id}`}>Description (Optional)</Label>
                       <Textarea
                         id={`edit-description-${plan.id}`}
-                        value={newMealDescription}
-                        onChange={e => setNewMealDescription(e.target.value)}
+                        value={dayFormValues.description}
+                        onChange={e => handleInputChange(plan.id, "description", e.target.value)}
                         placeholder="What's on the menu?"
                         className="mt-1"
                       />
@@ -276,9 +309,10 @@ const MealPlanner = () => {
                         size="sm" 
                         onClick={() => {
                           setEditingMeal(null);
-                          setNewMealTitle("");
-                          setNewMealTime("");
-                          setNewMealDescription("");
+                          setFormValues(prev => ({
+                            ...prev,
+                            [plan.id]: { title: "", time: "", description: "" }
+                          }));
                         }}
                       >
                         Cancel
@@ -301,8 +335,8 @@ const MealPlanner = () => {
                       <Label htmlFor={`title-${plan.id}`}>Title</Label>
                       <Input
                         id={`title-${plan.id}`}
-                        value={newMealTitle}
-                        onChange={e => setNewMealTitle(e.target.value)}
+                        value={dayFormValues.title}
+                        onChange={e => handleInputChange(plan.id, "title", e.target.value)}
                         className="mt-1"
                         placeholder="Breakfast, Lunch, Dinner, etc."
                       />
@@ -312,8 +346,8 @@ const MealPlanner = () => {
                       <Input
                         id={`time-${plan.id}`}
                         type="time"
-                        value={newMealTime}
-                        onChange={e => setNewMealTime(e.target.value)}
+                        value={dayFormValues.time}
+                        onChange={e => handleInputChange(plan.id, "time", e.target.value)}
                         className="mt-1"
                       />
                     </div>
@@ -321,8 +355,8 @@ const MealPlanner = () => {
                       <Label htmlFor={`description-${plan.id}`}>Description (Optional)</Label>
                       <Textarea
                         id={`description-${plan.id}`}
-                        value={newMealDescription}
-                        onChange={e => setNewMealDescription(e.target.value)}
+                        value={dayFormValues.description}
+                        onChange={e => handleInputChange(plan.id, "description", e.target.value)}
                         placeholder="What's on the menu?"
                         className="mt-1"
                       />
@@ -339,7 +373,7 @@ const MealPlanner = () => {
               )}
             </CardContent>
           </Card>
-        ))}
+        )})}
       </div>
     </div>
   );
