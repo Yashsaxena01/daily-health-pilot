@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -43,7 +44,8 @@ const createInitialMealPlans = (): DayPlan[] => {
 };
 
 const MealPlanner = () => {
-  const [mealPlans, setMealPlans] = useLocalStorage<DayPlan[]>("mealPlans", createInitialMealPlans);
+  // Fix: Initialize with the result of calling createInitialMealPlans(), not the function itself
+  const [mealPlans, setMealPlans] = useLocalStorage<DayPlan[]>("mealPlans", createInitialMealPlans());
   const [editingMeal, setEditingMeal] = useState<{ dayId: string; mealId: string | null } | null>(null);
   const [newMealTitle, setNewMealTitle] = useState("");
   const [newMealTime, setNewMealTime] = useState("");

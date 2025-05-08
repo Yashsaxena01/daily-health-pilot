@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,6 +8,7 @@ import { format, parse } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/components/ui/use-toast";
+import useLocalStorage from "@/hooks/useLocalStorage";
 
 interface ScheduleItem {
   id: string;
@@ -34,15 +34,8 @@ interface DailyScheduleProps {
 }
 
 const DailySchedule = ({ notificationsEnabled = true }: DailyScheduleProps) => {
-  const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([
-    { id: "1", time: "06:00", description: "Wake up", completed: true, notification: true },
-    { id: "2", time: "07:00", description: "Morning workout", completed: false, notification: true },
-    { id: "3", time: "08:00", description: "Breakfast", completed: false, notification: true },
-    { id: "4", time: "12:00", description: "Lunch", completed: false, notification: true },
-    { id: "5", time: "15:00", description: "Take supplements", completed: false, notification: true },
-    { id: "6", time: "18:00", description: "Dinner", completed: false, notification: true },
-    { id: "7", time: "22:00", description: "Sleep", completed: false, notification: true },
-  ]);
+  // Replace useState with useLocalStorage for scheduleItems to persist data
+  const [scheduleItems, setScheduleItems] = useLocalStorage<ScheduleItem[]>("scheduleItems", []);
   
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<ScheduleItem | null>(null);

@@ -8,9 +8,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Activity, Bell, Calendar, Clock, BellOff, Utensils } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import useLocalStorage from "@/hooks/useLocalStorage";
 
 const Schedule = () => {
-  const [notifications, setNotifications] = useState({
+  // Use localStorage to persist notification settings
+  const [notifications, setNotifications] = useLocalStorage("scheduleNotifications", {
     schedule: true,
     meals: true,
     medications: true,
