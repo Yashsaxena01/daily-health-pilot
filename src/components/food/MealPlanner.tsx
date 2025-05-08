@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Edit, Plus, Save, Calendar, Clock, Utensils, X } from "lucide-react";
+import { Edit, Plus, Save, Calendar, Clock, Utensils, X, Check } from "lucide-react";
 import { format } from "date-fns";
 
 interface Meal {
