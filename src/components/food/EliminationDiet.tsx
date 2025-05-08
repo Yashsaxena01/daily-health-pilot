@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Check, ChevronDown, ChevronUp, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import useLocalStorage from "@/hooks/useLocalStorage";
 
 export interface EliminationDietProps {
   colorCoding?: boolean;
@@ -34,7 +35,7 @@ const initialCategories: FoodCategory[] = [
     name: "Grains",
     foods: [
       { id: "g1", name: "Wheat", introduced: false },
-      { id: "g2", name: "Rice", introduced: true, date: "2023-04-15", reaction: "No reaction", reactionLevel: "none" },
+      { id: "g2", name: "Rice", introduced: false },
       { id: "g3", name: "Oats", introduced: false },
       { id: "g4", name: "Corn", introduced: false },
     ],
@@ -64,7 +65,7 @@ const initialCategories: FoodCategory[] = [
 ];
 
 const EliminationDiet = ({ colorCoding = false }: EliminationDietProps) => {
-  const [categories, setCategories] = useState<FoodCategory[]>(initialCategories);
+  const [categories, setCategories] = useLocalStorage<FoodCategory[]>("eliminationDietCategories", initialCategories);
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [isAddingFood, setIsAddingFood] = useState<string | null>(null);
   const [newCategoryName, setNewCategoryName] = useState("");

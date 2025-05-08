@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Edit, Plus, Save, Calendar, Clock, Utensils, X, Check } from "lucide-react";
 import { format } from "date-fns";
+import useLocalStorage from "@/hooks/useLocalStorage";
 
 interface Meal {
   id: string;
@@ -43,7 +43,7 @@ const createInitialMealPlans = (): DayPlan[] => {
 };
 
 const MealPlanner = () => {
-  const [mealPlans, setMealPlans] = useState<DayPlan[]>(createInitialMealPlans);
+  const [mealPlans, setMealPlans] = useLocalStorage<DayPlan[]>("mealPlans", createInitialMealPlans);
   const [editingMeal, setEditingMeal] = useState<{ dayId: string; mealId: string | null } | null>(null);
   const [newMealTitle, setNewMealTitle] = useState("");
   const [newMealTime, setNewMealTime] = useState("");

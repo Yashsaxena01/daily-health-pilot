@@ -11,9 +11,11 @@ import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import useLocalStorage from "@/hooks/useLocalStorage";
 
 const Index = () => {
-  const [weightData, setWeightData] = useState<{date: string, weight: number}[]>([]);
+  // Share the same localStorage key as the Weight page for consistency
+  const [weightData, setWeightData] = useLocalStorage<{date: string, weight: number}[]>("weightData", []);
   const [weight, setWeight] = useState("");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
 

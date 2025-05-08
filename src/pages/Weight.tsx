@@ -10,11 +10,12 @@ import { toast } from "@/components/ui/use-toast";
 import { format, parse, isValid } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import useLocalStorage from "@/hooks/useLocalStorage";
 
 const Weight = () => {
   const [weight, setWeight] = useState("");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [weightData, setWeightData] = useState<Array<{date: string, weight: number}>>([]);
+  const [weightData, setWeightData] = useLocalStorage<Array<{date: string, weight: number}>>("weightData", []);
   const [view, setView] = useState<"daily" | "weekly" | "monthly">("daily");
   
   // Force scroll to top when the component mounts

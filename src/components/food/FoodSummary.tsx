@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/use-toast";
+import useLocalStorage from "@/hooks/useLocalStorage";
 
 interface FoodItem {
   id: string;
@@ -34,25 +34,24 @@ interface FoodSummaryProps {
   }
 }
 
+const defaultData = {
+  streak: 0,
+  lastJunkFood: null,
+  introducedFoods: [],
+  todaysFood: undefined,
+  nextMeal: undefined
+};
+
 const FoodSummary = ({ data }: FoodSummaryProps) => {
-  // Empty state for new user
-  const defaultData = {
-    streak: 0,
-    lastJunkFood: null,
-    introducedFoods: [],
-    todaysFood: undefined,
-    nextMeal: undefined
-  };
-  
-  // If no data provided, use empty state
-  const summaryData = data || defaultData;
+  // If no data provided, use empty state from localStorage
+  const [summaryData, setSummaryData] = useLocalStorage("foodSummaryData", data || defaultData);
   
   const [filterReaction, setFilterReaction] = useState<"all" | "mild" | "severe">("all");
   const [isAddingIntolerance, setIsAddingIntolerance] = useState(false);
   const [newIntolerance, setNewIntolerance] = useState({ name: "", category: "", reactionLevel: "mild" as "mild" | "severe" });
   
   // State to track manual intolerances (those not from introduced foods)
-  const [manualIntolerances, setManualIntolerances] = useState<FoodItem[]>([]);
+  const [manualIntolerances, setManualIntolerances] = useLocalStorage<FoodItem[]>("foodIntolerances", []);
 
   const getReactionColor = (reactionLevel: string) => {
     switch (reactionLevel) {
