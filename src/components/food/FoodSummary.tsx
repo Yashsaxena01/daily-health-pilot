@@ -3,8 +3,11 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { Calendar, Check, Filter, List } from "lucide-react";
+import { Calendar, Check, Filter, List, Plus, Trash, Edit } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { toast } from "@/components/ui/use-toast";
 
 interface FoodItem {
   id: string;
@@ -32,30 +35,24 @@ interface FoodSummaryProps {
 }
 
 const FoodSummary = ({ data }: FoodSummaryProps) => {
-  // If no data provided, use mock data
-  const summaryData = data || {
-    streak: 5,
-    lastJunkFood: { date: "2025-05-01", item: "Chocolate cake" },
-    introducedFoods: [
-      { id: "1", name: "Rice", date: "2025-04-30", reactionLevel: "none", category: "Grains" },
-      { id: "2", name: "Yogurt", date: "2025-04-28", reactionLevel: "mild", category: "Dairy" },
-      { id: "3", name: "Almonds", date: "2025-04-25", reactionLevel: "none", category: "Nuts" },
-      { id: "4", name: "Garlic", date: "2025-04-22", reactionLevel: "severe", category: "FODMAPs" },
-      { id: "5", name: "Wheat", date: "2025-04-20", reactionLevel: "severe", category: "Grains" },
-      { id: "6", name: "Eggs", date: "2025-04-18", reactionLevel: "mild", category: "Protein" },
-    ],
-    todaysFood: {
-      name: "Oats",
-      category: "Grains"
-    },
-    nextMeal: {
-      type: "lunch",
-      time: "12:30 PM",
-      food: "Grilled chicken with vegetables"
-    }
+  // Empty state for new user
+  const defaultData = {
+    streak: 0,
+    lastJunkFood: null,
+    introducedFoods: [],
+    todaysFood: undefined,
+    nextMeal: undefined
   };
-
+  
+  // If no data provided, use empty state
+  const summaryData = data || defaultData;
+  
   const [filterReaction, setFilterReaction] = useState<"all" | "mild" | "severe">("all");
+  const [isAddingIntolerance, setIsAddingIntolerance] = useState(false);
+  const [newIntolerance, setNewIntolerance] = useState({ name: "", category: "", reactionLevel: "mild" as "mild" | "severe" });
+  
+  // State to track manual intolerances (those not from introduced foods)
+  const [manualIntolerances, setManualIntolerances] = useState<FoodItem[]>([]);
 
   const getReactionColor = (reactionLevel: string) => {
     switch (reactionLevel) {
@@ -75,13 +72,57 @@ const FoodSummary = ({ data }: FoodSummaryProps) => {
     }
   };
 
-  const intolerances = summaryData.introducedFoods.filter(
+  // Combine introduced foods with manual intolerances
+  const allIntolerances = [...summaryData.introducedFoods.filter(
     food => food.reactionLevel === "mild" || food.reactionLevel === "severe"
-  );
+  ), ...manualIntolerances];
 
   const filteredFoods = filterReaction === "all" 
-    ? summaryData.introducedFoods
-    : summaryData.introducedFoods.filter(food => food.reactionLevel === filterReaction);
+    ? [...summaryData.introducedFoods, ...manualIntolerances]
+    : [...summaryData.introducedFoods, ...manualIntolerances].filter(food => food.reactionLevel === filterReaction);
+
+  const handleAddIntolerance = () => {
+    if (!newIntolerance.name || !newIntolerance.category) {
+      toast({
+        description: "Please fill in all fields",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const newItem: FoodItem = {
+      id: Date.now().toString(),
+      name: newIntolerance.name,
+      category: newIntolerance.category,
+      reactionLevel: newIntolerance.reactionLevel,
+      date: new Date().toISOString().split('T')[0]
+    };
+
+    setManualIntolerances(prev => [...prev, newItem]);
+    setNewIntolerance({ name: "", category: "", reactionLevel: "mild" });
+    setIsAddingIntolerance(false);
+
+    toast({
+      description: `${newItem.name} added to your intolerances.`,
+    });
+  };
+
+  const handleRemoveIntolerance = (id: string) => {
+    // Check if it's a manual intolerance
+    const isManual = manualIntolerances.some(item => item.id === id);
+    
+    if (isManual) {
+      setManualIntolerances(prev => prev.filter(item => item.id !== id));
+      toast({
+        description: "Intolerance removed successfully.",
+      });
+    } else {
+      toast({
+        description: "Cannot remove an intolerance discovered through food introduction.",
+        variant: "destructive"
+      });
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -161,26 +202,105 @@ const FoodSummary = ({ data }: FoodSummaryProps) => {
         </Card>
         
         <Card className="border-accent/10">
-          <CardHeader className="pb-2">
+          <CardHeader className="pb-2 flex flex-row justify-between items-center">
             <CardTitle className="text-lg flex items-center gap-2">
               <List className="h-5 w-5" />
               Your Intolerances
             </CardTitle>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="h-8"
+              onClick={() => setIsAddingIntolerance(!isAddingIntolerance)}
+            >
+              {isAddingIntolerance ? "Cancel" : (
+                <>
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add
+                </>
+              )}
+            </Button>
           </CardHeader>
           <CardContent className="p-0">
-            {intolerances.length > 0 ? (
-              <div className="px-6 pb-4">
-                <ul className="space-y-2">
-                  {intolerances.map(food => (
-                    <li key={food.id} className="flex items-center gap-2">
-                      <div 
+            {isAddingIntolerance && (
+              <div className="px-6 pt-4 pb-2 border-b">
+                <div className="space-y-3">
+                  <div>
+                    <Label htmlFor="intolerance-name">Food Name</Label>
+                    <Input 
+                      id="intolerance-name" 
+                      value={newIntolerance.name}
+                      onChange={(e) => setNewIntolerance(prev => ({ ...prev, name: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="intolerance-category">Category</Label>
+                    <Input 
+                      id="intolerance-category"
+                      value={newIntolerance.category}
+                      onChange={(e) => setNewIntolerance(prev => ({ ...prev, category: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label>Reaction Level</Label>
+                    <div className="grid grid-cols-2 gap-2 mt-1">
+                      <Button 
+                        type="button"
+                        variant={newIntolerance.reactionLevel === "mild" ? "default" : "outline"}
                         className={cn(
-                          "h-3 w-3 rounded-full",
-                          getReactionColor(food.reactionLevel)
+                          newIntolerance.reactionLevel === "mild" ? "bg-yellow-500 hover:bg-yellow-600" : ""
                         )}
-                      />
-                      <span>{food.name}</span>
-                      <span className="text-xs text-muted-foreground">({food.category})</span>
+                        onClick={() => setNewIntolerance(prev => ({ ...prev, reactionLevel: "mild" }))}
+                      >
+                        Mild
+                      </Button>
+                      <Button 
+                        type="button"
+                        variant={newIntolerance.reactionLevel === "severe" ? "default" : "outline"}
+                        className={cn(
+                          newIntolerance.reactionLevel === "severe" ? "bg-red-500 hover:bg-red-600" : ""
+                        )}
+                        onClick={() => setNewIntolerance(prev => ({ ...prev, reactionLevel: "severe" }))}
+                      >
+                        Severe
+                      </Button>
+                    </div>
+                  </div>
+                  <Button className="w-full" onClick={handleAddIntolerance}>
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add Intolerance
+                  </Button>
+                </div>
+              </div>
+            )}
+            
+            {allIntolerances.length > 0 ? (
+              <div className="px-6 py-4">
+                <ul className="space-y-2">
+                  {allIntolerances.map(food => (
+                    <li key={food.id} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className={cn(
+                            "h-3 w-3 rounded-full",
+                            getReactionColor(food.reactionLevel)
+                          )}
+                        />
+                        <span>{food.name}</span>
+                        <span className="text-xs text-muted-foreground">({food.category})</span>
+                      </div>
+                      
+                      {/* Show delete button only for manual intolerances */}
+                      {manualIntolerances.some(item => item.id === food.id) && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                          onClick={() => handleRemoveIntolerance(food.id)}
+                        >
+                          <Trash className="h-3 w-3" />
+                        </Button>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -237,42 +357,49 @@ const FoodSummary = ({ data }: FoodSummaryProps) => {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="max-h-[300px] overflow-y-auto">
-            <table className="w-full">
-              <thead className="sticky top-0 bg-white">
-                <tr className="text-left text-muted-foreground text-xs">
-                  <th className="p-3">Food</th>
-                  <th className="p-3">Category</th>
-                  <th className="p-3">Date</th>
-                  <th className="p-3">Result</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredFoods.map(food => (
-                  <tr key={food.id} className="border-t">
-                    <td className="p-3">{food.name}</td>
-                    <td className="p-3 text-xs text-muted-foreground">{food.category}</td>
-                    <td className="p-3 text-xs text-muted-foreground">
-                      {new Date(food.date).toLocaleDateString()}
-                    </td>
-                    <td className="p-3">
-                      <div className="flex items-center gap-2">
-                        <div 
-                          className={cn(
-                            "h-3 w-3 rounded-full",
-                            getReactionColor(food.reactionLevel)
-                          )}
-                        />
-                        <span className="text-xs">
-                          {getReactionText(food.reactionLevel)}
-                        </span>
-                      </div>
-                    </td>
+          {filteredFoods.length > 0 ? (
+            <div className="max-h-[300px] overflow-y-auto">
+              <table className="w-full">
+                <thead className="sticky top-0 bg-white">
+                  <tr className="text-left text-muted-foreground text-xs">
+                    <th className="p-3">Food</th>
+                    <th className="p-3">Category</th>
+                    <th className="p-3">Date</th>
+                    <th className="p-3">Result</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {filteredFoods.map(food => (
+                    <tr key={food.id} className="border-t">
+                      <td className="p-3">{food.name}</td>
+                      <td className="p-3 text-xs text-muted-foreground">{food.category}</td>
+                      <td className="p-3 text-xs text-muted-foreground">
+                        {new Date(food.date).toLocaleDateString()}
+                      </td>
+                      <td className="p-3">
+                        <div className="flex items-center gap-2">
+                          <div 
+                            className={cn(
+                              "h-3 w-3 rounded-full",
+                              getReactionColor(food.reactionLevel)
+                            )}
+                          />
+                          <span className="text-xs">
+                            {getReactionText(food.reactionLevel)}
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="py-8 px-3 text-center text-muted-foreground">
+              <p>No food introduction history yet</p>
+              <p className="text-sm mt-1">Start introducing foods to track your reactions</p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

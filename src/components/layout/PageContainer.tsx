@@ -19,6 +19,7 @@ const PageContainer = ({
         !noPadding && "px-4 py-6", 
         className
       )}
+      style={{ overscrollBehavior: "contain" }}
     >
       {children}
     </div>

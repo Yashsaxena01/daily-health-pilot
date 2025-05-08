@@ -7,27 +7,14 @@ import { Input } from "@/components/ui/input";
 import WeightGraph from "@/components/weight/WeightGraph";
 import { Plus, ArrowLeft, ArrowRight, Weight as WeightIcon, Calendar } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
-import { format, subDays, parse, isValid } from "date-fns";
+import { format, parse, isValid } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 
 const Weight = () => {
   const [weight, setWeight] = useState("");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  
-  // Generate mock data
-  const generateMockData = () => {
-    return Array.from({ length: 14 }, (_, i) => {
-      const date = format(subDays(new Date(), 13 - i), "MMM d");
-      const weightValue = (70 + Math.random() * 2).toFixed(1);
-      return {
-        date,
-        weight: parseFloat(weightValue) // Convert to number
-      };
-    });
-  };
-  
-  const [weightData, setWeightData] = useState(generateMockData());
+  const [weightData, setWeightData] = useState<Array<{date: string, weight: number}>>([]);
   const [view, setView] = useState<"daily" | "weekly" | "monthly">("daily");
   
   // Force scroll to top when the component mounts
@@ -133,23 +120,34 @@ const Weight = () => {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="h-64 w-full">
-            <WeightGraph data={weightData} />
-          </div>
-          
-          <div className="mt-4 flex justify-between items-center text-sm">
-            <div className="flex items-center">
-              <ArrowLeft className="h-4 w-4 mr-1" />
-              <span>Previous</span>
+          {weightData.length > 0 ? (
+            <>
+              <div className="h-64 w-full">
+                <WeightGraph data={weightData} view={view} />
+              </div>
+              
+              <div className="mt-4 flex justify-between items-center text-sm">
+                <div className="flex items-center">
+                  <ArrowLeft className="h-4 w-4 mr-1" />
+                  <span>Previous</span>
+                </div>
+                <div className="font-medium">
+                  {view === "daily" && "Daily view"}
+                  {view === "weekly" && "Weekly view"}
+                  {view === "monthly" && "Monthly view"}
+                </div>
+                <div className="flex items-center">
+                  <span>Next</span>
+                  <ArrowRight className="h-4 w-4 ml-1" />
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-12 text-muted-foreground">
+              <p>No weight data recorded yet.</p>
+              <p className="text-sm mt-2">Add your first weight entry above to see your progress.</p>
             </div>
-            <div className="font-medium">
-              Last 14 days
-            </div>
-            <div className="flex items-center">
-              <span>Next</span>
-              <ArrowRight className="h-4 w-4 ml-1" />
-            </div>
-          </div>
+          )}
         </CardContent>
       </Card>
     </PageContainer>

@@ -10,6 +10,7 @@ import { format } from "date-fns";
 
 interface Meal {
   id: string;
+  title: string;
   time: string;
   description: string;
   completed: boolean;
@@ -44,11 +45,12 @@ const createInitialMealPlans = (): DayPlan[] => {
 const MealPlanner = () => {
   const [mealPlans, setMealPlans] = useState<DayPlan[]>(createInitialMealPlans);
   const [editingMeal, setEditingMeal] = useState<{ dayId: string; mealId: string | null } | null>(null);
+  const [newMealTitle, setNewMealTitle] = useState("");
   const [newMealTime, setNewMealTime] = useState("");
   const [newMealDescription, setNewMealDescription] = useState("");
   
   const handleAddMeal = (dayId: string) => {
-    if (!newMealTime || !newMealDescription) return;
+    if (!newMealTime || !newMealTitle) return;
     
     setMealPlans(prevPlans => 
       prevPlans.map(plan => 
@@ -59,6 +61,7 @@ const MealPlanner = () => {
                 ...plan.meals, 
                 {
                   id: Date.now().toString(),
+                  title: newMealTitle,
                   time: newMealTime,
                   description: newMealDescription,
                   completed: false
@@ -69,6 +72,7 @@ const MealPlanner = () => {
       )
     );
     
+    setNewMealTitle("");
     setNewMealTime("");
     setNewMealDescription("");
   };
@@ -78,6 +82,7 @@ const MealPlanner = () => {
     const meal = day?.meals.find(m => m.id === mealId);
     
     if (meal) {
+      setNewMealTitle(meal.title);
       setNewMealTime(meal.time);
       setNewMealDescription(meal.description);
       setEditingMeal({ dayId, mealId });
@@ -85,7 +90,7 @@ const MealPlanner = () => {
   };
   
   const handleUpdateMeal = () => {
-    if (!editingMeal || !newMealTime || !newMealDescription) return;
+    if (!editingMeal || !newMealTime || !newMealTitle) return;
     
     setMealPlans(prevPlans => 
       prevPlans.map(plan => 
@@ -94,7 +99,12 @@ const MealPlanner = () => {
               ...plan, 
               meals: plan.meals.map(meal => 
                 meal.id === editingMeal.mealId
-                  ? { ...meal, time: newMealTime, description: newMealDescription }
+                  ? { 
+                      ...meal, 
+                      title: newMealTitle,
+                      time: newMealTime, 
+                      description: newMealDescription 
+                    }
                   : meal
               ).sort((a, b) => a.time.localeCompare(b.time))
             } 
@@ -103,6 +113,7 @@ const MealPlanner = () => {
     );
     
     setEditingMeal(null);
+    setNewMealTitle("");
     setNewMealTime("");
     setNewMealDescription("");
   };
@@ -172,13 +183,18 @@ const MealPlanner = () => {
                       }`}
                     >
                       <div className="flex-1">
-                        <div className="flex items-center gap-2">
+                        <h4 className={`font-medium ${meal.completed ? "line-through text-muted-foreground" : ""}`}>
+                          {meal.title}
+                        </h4>
+                        <div className="flex items-center gap-2 mt-1">
                           <Clock className="h-4 w-4 text-muted-foreground" />
-                          <span className="font-medium text-sm">{meal.time}</span>
+                          <span className="text-sm">{meal.time}</span>
                         </div>
-                        <p className={`mt-1 ${meal.completed ? "line-through text-muted-foreground" : ""}`}>
-                          {meal.description}
-                        </p>
+                        {meal.description && (
+                          <p className={`mt-1 text-sm ${meal.completed ? "line-through text-muted-foreground" : ""}`}>
+                            {meal.description}
+                          </p>
+                        )}
                       </div>
                       <div className="flex gap-1">
                         <Button 
@@ -223,6 +239,16 @@ const MealPlanner = () => {
                   </h4>
                   <div className="space-y-3">
                     <div>
+                      <Label htmlFor={`edit-title-${plan.id}`}>Title</Label>
+                      <Input
+                        id={`edit-title-${plan.id}`}
+                        value={newMealTitle}
+                        onChange={e => setNewMealTitle(e.target.value)}
+                        className="mt-1"
+                        placeholder="Breakfast, Lunch, Dinner, etc."
+                      />
+                    </div>
+                    <div>
                       <Label htmlFor={`edit-time-${plan.id}`}>Time</Label>
                       <Input
                         id={`edit-time-${plan.id}`}
@@ -233,7 +259,7 @@ const MealPlanner = () => {
                       />
                     </div>
                     <div>
-                      <Label htmlFor={`edit-description-${plan.id}`}>Description</Label>
+                      <Label htmlFor={`edit-description-${plan.id}`}>Description (Optional)</Label>
                       <Textarea
                         id={`edit-description-${plan.id}`}
                         value={newMealDescription}
@@ -248,6 +274,7 @@ const MealPlanner = () => {
                         size="sm" 
                         onClick={() => {
                           setEditingMeal(null);
+                          setNewMealTitle("");
                           setNewMealTime("");
                           setNewMealDescription("");
                         }}
@@ -269,6 +296,16 @@ const MealPlanner = () => {
                   </h4>
                   <div className="space-y-3">
                     <div>
+                      <Label htmlFor={`title-${plan.id}`}>Title</Label>
+                      <Input
+                        id={`title-${plan.id}`}
+                        value={newMealTitle}
+                        onChange={e => setNewMealTitle(e.target.value)}
+                        className="mt-1"
+                        placeholder="Breakfast, Lunch, Dinner, etc."
+                      />
+                    </div>
+                    <div>
                       <Label htmlFor={`time-${plan.id}`}>Time</Label>
                       <Input
                         id={`time-${plan.id}`}
@@ -279,7 +316,7 @@ const MealPlanner = () => {
                       />
                     </div>
                     <div>
-                      <Label htmlFor={`description-${plan.id}`}>Description</Label>
+                      <Label htmlFor={`description-${plan.id}`}>Description (Optional)</Label>
                       <Textarea
                         id={`description-${plan.id}`}
                         value={newMealDescription}

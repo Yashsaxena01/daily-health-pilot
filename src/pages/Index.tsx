@@ -6,23 +6,16 @@ import { Button } from "@/components/ui/button";
 import PageContainer from "@/components/layout/PageContainer";
 import { ArrowRight, Activity, Weight, Utensils, Calendar, Plus, Check } from "lucide-react";
 import WeightGraph from "@/components/weight/WeightGraph";
-import { format, subDays } from "date-fns";
+import { format } from "date-fns";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/use-toast";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 
 const Index = () => {
-  // Mock weight data for the chart
-  const [weightData, setWeightData] = useState([
-    { date: "May 1", weight: 72.5 },
-    { date: "May 2", weight: 72.3 },
-    { date: "May 3", weight: 72.1 },
-    { date: "May 4", weight: 72.4 },
-    { date: "May 5", weight: 72.0 },
-    { date: "May 6", weight: 71.8 },
-    { date: "May 7", weight: 71.6 },
-  ]);
-
+  const [weightData, setWeightData] = useState<{date: string, weight: number}[]>([]);
   const [weight, setWeight] = useState("");
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
 
   const handleAddWeight = () => {
     if (!weight) return;
@@ -30,16 +23,16 @@ const Index = () => {
     const numWeight = parseFloat(weight);
     if (isNaN(numWeight)) return;
     
-    const today = format(new Date(), "MMM d");
+    const dateStr = selectedDate ? format(selectedDate, "MMM d") : format(new Date(), "MMM d");
     const newWeightData = [...weightData];
     
     // Check if we already have an entry for today
-    const todayIndex = newWeightData.findIndex(item => item.date === today);
+    const dateIndex = newWeightData.findIndex(item => item.date === dateStr);
     
-    if (todayIndex >= 0) {
-      newWeightData[todayIndex] = { date: today, weight: numWeight };
+    if (dateIndex >= 0) {
+      newWeightData[dateIndex] = { date: dateStr, weight: numWeight };
     } else {
-      newWeightData.push({ date: today, weight: numWeight });
+      newWeightData.push({ date: dateStr, weight: numWeight });
     }
     
     setWeightData(newWeightData);
@@ -50,24 +43,16 @@ const Index = () => {
     });
   };
 
-  // Mock data for upcoming meal and food to introduce
-  const todaysFood = {
-    name: "Oats",
-    category: "Grains"
-  };
-
-  const nextMeal = {
-    type: "lunch",
-    time: "12:30 PM",
-    food: "Grilled chicken with vegetables"
-  };
+  // Empty states for a new user
+  const todaysFood = undefined;
+  const nextMeal = undefined;
 
   return (
     <PageContainer>
       <div className="mb-8">
-        <h1 className="text-3xl font-bold">Hi Yash,</h1>
+        <h1 className="text-3xl font-bold">Hi there,</h1>
         <p className="text-muted-foreground mt-2 italic">
-          "One cheat meal will set you back to 5 days of hard work."
+          "Track your diet and weight to improve your health journey."
         </p>
       </div>
 
@@ -86,23 +71,49 @@ const Index = () => {
           </CardHeader>
           <CardContent>
             <div className="flex flex-col gap-4">
-              <div className="flex items-center gap-2">
-                <Input
-                  type="number"
-                  step="0.1"
-                  placeholder="Enter your weight"
-                  value={weight}
-                  onChange={e => setWeight(e.target.value)}
-                  className="flex-1"
-                />
-                <Button onClick={handleAddWeight} className="flex-shrink-0">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                <div className="w-full sm:flex-1">
+                  <Input
+                    type="number"
+                    step="0.1"
+                    placeholder="Enter your weight"
+                    value={weight}
+                    onChange={e => setWeight(e.target.value)}
+                    className="w-full"
+                  />
+                </div>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full sm:w-auto flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      {selectedDate ? format(selectedDate, "MMM d, yyyy") : "Select date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={setSelectedDate}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                <Button onClick={handleAddWeight} className="w-full sm:w-auto">
                   <Plus className="h-4 w-4 mr-1" />
-                  Add
+                  Add Weight
                 </Button>
               </div>
-              <div className="h-44">
-                <WeightGraph data={weightData} />
-              </div>
+              
+              {weightData.length > 0 ? (
+                <div className="h-44">
+                  <WeightGraph data={weightData} />
+                </div>
+              ) : (
+                <div className="h-44 flex items-center justify-center text-muted-foreground flex-col">
+                  <p>No weight data recorded yet</p>
+                  <p className="text-sm">Add your first entry to see your progress graph</p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -134,7 +145,9 @@ const Index = () => {
                     </Button>
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">No food scheduled for introduction today</p>
+                  <p className="text-sm text-muted-foreground">
+                    No food scheduled for introduction today. Start your elimination diet in the Food section.
+                  </p>
                 )}
               </div>
               
@@ -146,7 +159,9 @@ const Index = () => {
                     <p className="text-sm">{nextMeal.food}</p>
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">No upcoming meals planned</p>
+                  <p className="text-sm text-muted-foreground">
+                    No upcoming meals planned. Create your meal plan in the Food section.
+                  </p>
                 )}
               </div>
             </div>
@@ -169,7 +184,7 @@ const Index = () => {
             <div className="bg-secondary p-4 rounded-lg">
               <h3 className="font-medium mb-2">Today's Activities</h3>
               <p className="text-sm text-muted-foreground">
-                Track your workouts and physical activities
+                Track your workouts and physical activities in the Schedule section
               </p>
             </div>
           </CardContent>
@@ -191,7 +206,7 @@ const Index = () => {
             <div className="bg-secondary p-4 rounded-lg">
               <h3 className="font-medium mb-2">Today's Schedule</h3>
               <p className="text-sm text-muted-foreground">
-                Manage your daily routine and reminders
+                Manage your daily routine and reminders in the Schedule section
               </p>
             </div>
           </CardContent>
