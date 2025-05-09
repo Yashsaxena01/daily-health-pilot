@@ -5,9 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Check, ChevronDown, ChevronUp, Plus } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, Plus, Trash, Edit, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import useLocalStorage from "@/hooks/useLocalStorage";
+import { toast } from "@/components/ui/use-toast";
 
 export interface EliminationDietProps {
   colorCoding?: boolean;
@@ -70,6 +71,10 @@ const EliminationDiet = ({ colorCoding = false }: EliminationDietProps) => {
   const [isAddingFood, setIsAddingFood] = useState<string | null>(null);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [newFoodName, setNewFoodName] = useState("");
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
+  const [editingCategoryName, setEditingCategoryName] = useState("");
+  const [editingFoodId, setEditingFoodId] = useState<{categoryId: string, foodId: string} | null>(null);
+  const [editingFoodName, setEditingFoodName] = useState("");
   
   const [selectedFood, setSelectedFood] = useState<Food | null>(null);
   const [reactionText, setReactionText] = useState("");
@@ -109,6 +114,35 @@ const EliminationDiet = ({ colorCoding = false }: EliminationDietProps) => {
     setCategories([...categories, newCategory]);
     setNewCategoryName("");
     setIsAddingCategory(false);
+    
+    toast({
+      description: `Category "${newCategoryName}" added successfully.`,
+    });
+  };
+
+  const handleEditCategory = (categoryId: string) => {
+    if (!editingCategoryName) return;
+    
+    setCategories(prev => 
+      prev.map(cat => 
+        cat.id === categoryId ? { ...cat, name: editingCategoryName } : cat
+      )
+    );
+    
+    setEditingCategoryId(null);
+    setEditingCategoryName("");
+    
+    toast({
+      description: "Category updated successfully.",
+    });
+  };
+  
+  const handleDeleteCategory = (categoryId: string) => {
+    setCategories(prev => prev.filter(cat => cat.id !== categoryId));
+    
+    toast({
+      description: "Category deleted successfully.",
+    });
   };
   
   const handleAddFood = (categoryId: string) => {
@@ -130,6 +164,48 @@ const EliminationDiet = ({ colorCoding = false }: EliminationDietProps) => {
     
     setNewFoodName("");
     setIsAddingFood(null);
+    
+    toast({
+      description: `Food "${newFoodName}" added successfully.`,
+    });
+  };
+  
+  const handleEditFood = (categoryId: string, foodId: string) => {
+    if (!editingFoodName) return;
+    
+    setCategories(prev => 
+      prev.map(cat => 
+        cat.id === categoryId 
+          ? { 
+              ...cat, 
+              foods: cat.foods.map(f =>
+                f.id === foodId ? { ...f, name: editingFoodName } : f
+              )
+            } 
+          : cat
+      )
+    );
+    
+    setEditingFoodId(null);
+    setEditingFoodName("");
+    
+    toast({
+      description: "Food updated successfully.",
+    });
+  };
+  
+  const handleDeleteFood = (categoryId: string, foodId: string) => {
+    setCategories(prev => 
+      prev.map(cat => 
+        cat.id === categoryId 
+          ? { ...cat, foods: cat.foods.filter(f => f.id !== foodId) } 
+          : cat
+      )
+    );
+    
+    toast({
+      description: "Food deleted successfully.",
+    });
   };
   
   const handleToggleFood = (categoryId: string, foodId: string) => {
@@ -193,6 +269,10 @@ const EliminationDiet = ({ colorCoding = false }: EliminationDietProps) => {
     setSelectedFood(null);
     setReactionText("");
     setReactionLevel("none");
+    
+    toast({
+      description: `Reaction to "${selectedFood.name}" recorded.`,
+    });
   };
 
   const getReactionColor = (reactionLevel?: string) => {
@@ -341,28 +421,82 @@ const EliminationDiet = ({ colorCoding = false }: EliminationDietProps) => {
         {categories.map(category => (
           <div key={category.id}>
             <div className="flex items-center justify-between bg-white p-3 rounded-lg border shadow-sm">
-              <h3 className="font-medium">{category.name}</h3>
+              {editingCategoryId === category.id ? (
+                <Input 
+                  value={editingCategoryName}
+                  onChange={e => setEditingCategoryName(e.target.value)}
+                  className="max-w-[60%]"
+                  autoFocus
+                />
+              ) : (
+                <h3 className="font-medium">{category.name}</h3>
+              )}
               <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0"
-                  onClick={() => toggleCategoryExpand(category.id)}
-                >
-                  {category.expanded ? (
-                    <ChevronUp className="h-4 w-4" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4" />
-                  )}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0"
-                  onClick={() => setIsAddingFood(category.id)}
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
+                {editingCategoryId === category.id ? (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8"
+                      onClick={() => {
+                        setEditingCategoryId(null);
+                        setEditingCategoryName("");
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8"
+                      onClick={() => handleEditCategory(category.id)}
+                    >
+                      <Check className="h-4 w-4" />
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      onClick={() => toggleCategoryExpand(category.id)}
+                    >
+                      {category.expanded ? (
+                        <ChevronUp className="h-4 w-4" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4" />
+                      )}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      onClick={() => {
+                        setEditingCategoryId(category.id);
+                        setEditingCategoryName(category.name);
+                      }}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                      onClick={() => handleDeleteCategory(category.id)}
+                    >
+                      <Trash className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      onClick={() => setIsAddingFood(category.id)}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
             
@@ -413,35 +547,90 @@ const EliminationDiet = ({ colorCoding = false }: EliminationDietProps) => {
                         food.introduced ? "bg-muted/50" : "hover:bg-muted/30"
                       )}
                     >
-                      <div>
-                        <div className="flex items-center">
-                          <div
-                            className={cn(
-                              "h-5 w-5 rounded-full border flex items-center justify-center mr-2",
-                              food.introduced
-                                ? "border-muted-foreground text-white"
-                                : "border-muted-foreground",
-                              getReactionColor(food.reactionLevel)
-                            )}
-                            onClick={() => handleToggleFood(category.id, food.id)}
-                          >
-                            {food.introduced && <Check className="h-3 w-3" />}
+                      <div className="flex-1">
+                        {editingFoodId?.categoryId === category.id && editingFoodId?.foodId === food.id ? (
+                          <div className="flex items-center gap-2">
+                            <Input 
+                              value={editingFoodName}
+                              onChange={e => setEditingFoodName(e.target.value)}
+                              className="max-w-[60%]"
+                              autoFocus
+                            />
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setEditingFoodId(null);
+                                setEditingFoodName("");
+                              }}
+                            >
+                              Cancel
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEditFood(category.id, food.id)}
+                            >
+                              Save
+                            </Button>
                           </div>
-                          <span className={food.introduced ? "line-through text-muted-foreground" : ""}>
-                            {food.name}
-                          </span>
-                        </div>
-                        {food.introduced && food.reaction && (
+                        ) : (
+                          <div className="flex items-center">
+                            <div
+                              className={cn(
+                                "h-5 w-5 rounded-full border flex items-center justify-center mr-2 cursor-pointer",
+                                food.introduced
+                                  ? "border-muted-foreground text-white"
+                                  : "border-muted-foreground",
+                                getReactionColor(food.reactionLevel)
+                              )}
+                              onClick={() => handleToggleFood(category.id, food.id)}
+                            >
+                              {food.introduced && <Check className="h-3 w-3" />}
+                            </div>
+                            <span className={food.introduced ? "line-through text-muted-foreground" : ""}>
+                              {food.name}
+                            </span>
+                          </div>
+                        )}
+                        
+                        {food.introduced && food.reaction && !editingFoodId && (
                           <p className="text-xs text-muted-foreground ml-7 mt-1">
                             {food.reaction}
                           </p>
                         )}
                       </div>
-                      {food.date && (
-                        <span className="text-xs text-muted-foreground">
-                          {new Date(food.date).toLocaleDateString()}
-                        </span>
-                      )}
+                      
+                      <div className="flex items-center gap-1">
+                        {!(editingFoodId?.categoryId === category.id && editingFoodId?.foodId === food.id) && (
+                          <>
+                            {food.date && (
+                              <span className="text-xs text-muted-foreground mr-2">
+                                {new Date(food.date).toLocaleDateString()}
+                              </span>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0"
+                              onClick={() => {
+                                setEditingFoodId({categoryId: category.id, foodId: food.id});
+                                setEditingFoodName(food.name);
+                              }}
+                            >
+                              <Edit className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                              onClick={() => handleDeleteFood(category.id, food.id)}
+                            >
+                              <Trash className="h-3 w-3" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     </div>
                   ))
                 )}

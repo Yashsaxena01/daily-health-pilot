@@ -18,6 +18,14 @@ const Index = () => {
   const [weightData, setWeightData] = useLocalStorage<{date: string, weight: number}[]>("weightData", []);
   const [scheduleItems, setScheduleItems] = useLocalStorage<any[]>("scheduleItems", []);
   const [mealPlans, setMealPlans] = useLocalStorage<any[]>("mealPlans", []);
+  const [foodSummaryData, setFoodSummaryData] = useLocalStorage("foodSummaryData", {
+    streak: 0,
+    lastJunkFood: null,
+    introducedFoods: [],
+    todaysFood: undefined,
+    nextMeal: undefined
+  });
+  const [eliminationDietCategories, setEliminationDietCategories] = useLocalStorage("eliminationDietCategories", []);
   
   const [weight, setWeight] = useState("");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
@@ -48,6 +56,20 @@ const Index = () => {
     });
   };
 
+  // Get today's food to introduce
+  const getTodayFood = () => {
+    if (eliminationDietCategories && eliminationDietCategories.length > 0) {
+      for (const category of eliminationDietCategories) {
+        if (!category.foods) continue;
+        const nextFood = category.foods.find(food => !food.introduced);
+        if (nextFood) {
+          return { name: nextFood.name, category: category.name };
+        }
+      }
+    }
+    return undefined;
+  };
+
   // Get today's schedule items
   const todaysSchedule = scheduleItems.filter(item => !item.completed).slice(0, 3);
   
@@ -55,6 +77,34 @@ const Index = () => {
   const today = format(new Date(), "yyyy-MM-dd");
   const todayMealPlan = mealPlans.find(plan => plan.date === today);
   const upcomingMeals = todayMealPlan?.meals?.filter(meal => !meal.completed).slice(0, 2) || [];
+  
+  // Update today's food in summary data if needed
+  useEffect(() => {
+    const todaysFood = getTodayFood();
+    if (todaysFood && 
+        (!foodSummaryData.todaysFood || 
+         foodSummaryData.todaysFood.name !== todaysFood.name)) {
+      setFoodSummaryData({
+        ...foodSummaryData,
+        todaysFood
+      });
+    }
+  }, [eliminationDietCategories]);
+
+  // Update upcoming meals in summary data
+  useEffect(() => {
+    if (upcomingMeals.length > 0 && (!foodSummaryData.nextMeal || 
+        foodSummaryData.nextMeal.type !== upcomingMeals[0].title)) {
+      setFoodSummaryData({
+        ...foodSummaryData,
+        nextMeal: upcomingMeals.length > 0 ? {
+          type: upcomingMeals[0].title,
+          time: upcomingMeals[0].time,
+          food: upcomingMeals[0].description || "No description"
+        } : undefined
+      });
+    }
+  }, [mealPlans]);
 
   return (
     <PageContainer>
@@ -143,15 +193,17 @@ const Index = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="bg-secondary p-4 rounded-lg">
                 <h3 className="font-medium mb-2">Food to Introduce Today</h3>
-                {false ? (
+                {foodSummaryData.todaysFood ? (
                   <div className="flex justify-between items-center">
                     <div>
-                      <p className="text-sm">Food item</p>
-                      <p className="text-xs text-muted-foreground">Category</p>
+                      <p className="text-sm">{foodSummaryData.todaysFood.name}</p>
+                      <p className="text-xs text-muted-foreground">{foodSummaryData.todaysFood.category}</p>
                     </div>
-                    <Button variant="outline" size="sm" className="h-8 w-8 p-0">
-                      <Check className="h-4 w-4" />
-                    </Button>
+                    <Link to="/food">
+                      <Button variant="outline" size="sm" className="h-8 w-8 p-0">
+                        <Check className="h-4 w-4" />
+                      </Button>
+                    </Link>
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">
