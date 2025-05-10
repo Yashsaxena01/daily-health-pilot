@@ -9,7 +9,303 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      activities: {
+        Row: {
+          completed: boolean | null
+          created_at: string | null
+          date: string
+          description: string
+          id: string
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          completed?: boolean | null
+          created_at?: string | null
+          date: string
+          description: string
+          id?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          completed?: boolean | null
+          created_at?: string | null
+          date?: string
+          description?: string
+          id?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      food_categories: {
+        Row: {
+          created_at: string | null
+          expanded: boolean | null
+          id: string
+          name: string
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          expanded?: boolean | null
+          id?: string
+          name: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          expanded?: boolean | null
+          id?: string
+          name?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      food_summaries: {
+        Row: {
+          created_at: string | null
+          id: string
+          last_junk_food: string | null
+          streak: number | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          last_junk_food?: string | null
+          streak?: number | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          last_junk_food?: string | null
+          streak?: number | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      foods: {
+        Row: {
+          category_id: string | null
+          created_at: string | null
+          id: string
+          introduced: boolean | null
+          introduction_date: string | null
+          name: string
+          reaction: string | null
+          reaction_level: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          category_id?: string | null
+          created_at?: string | null
+          id?: string
+          introduced?: boolean | null
+          introduction_date?: string | null
+          name: string
+          reaction?: string | null
+          reaction_level?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          category_id?: string | null
+          created_at?: string | null
+          id?: string
+          introduced?: boolean | null
+          introduction_date?: string | null
+          name?: string
+          reaction?: string | null
+          reaction_level?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "foods_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "food_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      introduced_foods: {
+        Row: {
+          category: string
+          created_at: string | null
+          date: string
+          food_summary_id: string | null
+          id: string
+          name: string
+          reaction: string | null
+        }
+        Insert: {
+          category: string
+          created_at?: string | null
+          date: string
+          food_summary_id?: string | null
+          id?: string
+          name: string
+          reaction?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          date?: string
+          food_summary_id?: string | null
+          id?: string
+          name?: string
+          reaction?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "introduced_foods_food_summary_id_fkey"
+            columns: ["food_summary_id"]
+            isOneToOne: false
+            referencedRelation: "food_summaries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meal_plans: {
+        Row: {
+          created_at: string | null
+          date: string
+          id: string
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          date: string
+          id?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          date?: string
+          id?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      meals: {
+        Row: {
+          completed: boolean | null
+          created_at: string | null
+          description: string | null
+          feeling: string | null
+          id: string
+          meal_plan_id: string | null
+          time: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          completed?: boolean | null
+          created_at?: string | null
+          description?: string | null
+          feeling?: string | null
+          id?: string
+          meal_plan_id?: string | null
+          time?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          completed?: boolean | null
+          created_at?: string | null
+          description?: string | null
+          feeling?: string | null
+          id?: string
+          meal_plan_id?: string | null
+          time?: string | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meals_meal_plan_id_fkey"
+            columns: ["meal_plan_id"]
+            isOneToOne: false
+            referencedRelation: "meal_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      schedule_items: {
+        Row: {
+          completed: boolean | null
+          created_at: string | null
+          date: string
+          description: string | null
+          id: string
+          time: string | null
+          title: string
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          completed?: boolean | null
+          created_at?: string | null
+          date: string
+          description?: string | null
+          id?: string
+          time?: string | null
+          title: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          completed?: boolean | null
+          created_at?: string | null
+          date?: string
+          description?: string | null
+          id?: string
+          time?: string | null
+          title?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      weight_entries: {
+        Row: {
+          created_at: string | null
+          date: string
+          id: string
+          updated_at: string | null
+          user_id: string | null
+          weight: number
+        }
+        Insert: {
+          created_at?: string | null
+          date: string
+          id?: string
+          updated_at?: string | null
+          user_id?: string | null
+          weight: number
+        }
+        Update: {
+          created_at?: string | null
+          date?: string
+          id?: string
+          updated_at?: string | null
+          user_id?: string | null
+          weight?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

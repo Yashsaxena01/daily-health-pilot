@@ -3,6 +3,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 
 interface WeightGraphProps {
   data: {
+    id?: string;
     date: string;
     weight: number;
   }[];

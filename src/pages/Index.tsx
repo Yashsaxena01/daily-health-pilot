@@ -1,31 +1,28 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import PageContainer from "@/components/layout/PageContainer";
 import { ArrowRight, Activity, Weight, Utensils, Calendar, Plus, Check } from "lucide-react";
 import WeightGraph from "@/components/weight/WeightGraph";
-import { format, parse, isValid } from "date-fns";
+import { format } from "date-fns";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import useLocalStorage from "@/hooks/useLocalStorage";
+import { useWeightData } from "@/hooks/useWeightData";
+import { useScheduleItems } from "@/hooks/useScheduleItems";
+import { useMealPlans } from "@/hooks/useMealPlans";
+import { useFoodSummary } from "@/hooks/useFoodSummary";
+import { useEliminationDiet } from "@/hooks/useEliminationDiet";
 
 const Index = () => {
-  // Share the same localStorage key as the Weight page for consistency
-  const [weightData, setWeightData] = useLocalStorage<{date: string, weight: number}[]>("weightData", []);
-  const [scheduleItems, setScheduleItems] = useLocalStorage<any[]>("scheduleItems", []);
-  const [mealPlans, setMealPlans] = useLocalStorage<any[]>("mealPlans", []);
-  const [foodSummaryData, setFoodSummaryData] = useLocalStorage("foodSummaryData", {
-    streak: 0,
-    lastJunkFood: null,
-    introducedFoods: [],
-    todaysFood: undefined,
-    nextMeal: undefined
-  });
-  const [eliminationDietCategories, setEliminationDietCategories] = useLocalStorage("eliminationDietCategories", []);
+  const { weightData, addWeightEntry } = useWeightData();
+  const { scheduleItems, getTodaysItems } = useScheduleItems();
+  const { mealPlans } = useMealPlans();
+  const { summaryData: foodSummaryData } = useFoodSummary();
+  const { categories: eliminationDietCategories } = useEliminationDiet();
   
   const [weight, setWeight] = useState("");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
@@ -36,75 +33,17 @@ const Index = () => {
     const numWeight = parseFloat(weight);
     if (isNaN(numWeight)) return;
     
-    const dateStr = selectedDate ? format(selectedDate, "MMM d") : format(new Date(), "MMM d");
-    const newWeightData = [...weightData];
-    
-    // Check if we already have an entry for today
-    const dateIndex = newWeightData.findIndex(item => item.date === dateStr);
-    
-    if (dateIndex >= 0) {
-      newWeightData[dateIndex] = { date: dateStr, weight: numWeight };
-    } else {
-      newWeightData.push({ date: dateStr, weight: numWeight });
-    }
-    
-    setWeightData(newWeightData);
+    addWeightEntry(selectedDate || new Date(), numWeight);
     setWeight("");
-    
-    toast({
-      description: "Weight added successfully.",
-    });
-  };
-
-  // Get today's food to introduce
-  const getTodayFood = () => {
-    if (eliminationDietCategories && eliminationDietCategories.length > 0) {
-      for (const category of eliminationDietCategories) {
-        if (!category.foods) continue;
-        const nextFood = category.foods.find(food => !food.introduced);
-        if (nextFood) {
-          return { name: nextFood.name, category: category.name };
-        }
-      }
-    }
-    return undefined;
   };
 
   // Get today's schedule items
-  const todaysSchedule = scheduleItems.filter(item => !item.completed).slice(0, 3);
+  const todaysSchedule = getTodaysItems().slice(0, 3);
   
   // Get today's meal plan
   const today = format(new Date(), "yyyy-MM-dd");
   const todayMealPlan = mealPlans.find(plan => plan.date === today);
   const upcomingMeals = todayMealPlan?.meals?.filter(meal => !meal.completed).slice(0, 2) || [];
-  
-  // Update today's food in summary data if needed
-  useEffect(() => {
-    const todaysFood = getTodayFood();
-    if (todaysFood && 
-        (!foodSummaryData.todaysFood || 
-         foodSummaryData.todaysFood.name !== todaysFood.name)) {
-      setFoodSummaryData({
-        ...foodSummaryData,
-        todaysFood
-      });
-    }
-  }, [eliminationDietCategories]);
-
-  // Update upcoming meals in summary data
-  useEffect(() => {
-    if (upcomingMeals.length > 0 && (!foodSummaryData.nextMeal || 
-        foodSummaryData.nextMeal.type !== upcomingMeals[0].title)) {
-      setFoodSummaryData({
-        ...foodSummaryData,
-        nextMeal: upcomingMeals.length > 0 ? {
-          type: upcomingMeals[0].title,
-          time: upcomingMeals[0].time,
-          food: upcomingMeals[0].description || "No description"
-        } : undefined
-      });
-    }
-  }, [mealPlans]);
 
   return (
     <PageContainer>
