@@ -1,29 +1,21 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Check, Clock, Edit, Plus, Trash2, X, Bell, BellOff } from "lucide-react";
-import { format, parse } from "date-fns";
+import { Check, Clock, Edit, Plus, Trash2, Bell, BellOff } from "lucide-react";
+import { format, parse, isValid } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/components/ui/use-toast";
-import useLocalStorage from "@/hooks/useLocalStorage";
 import { Textarea } from "@/components/ui/textarea";
+import { useScheduleItems } from "@/hooks/useScheduleItems";
+import { Skeleton } from "@/components/ui/skeleton";
 
-interface ScheduleItem {
-  id: string;
-  time: string; // Format: "HH:mm"
-  title: string;
-  description: string;
-  completed: boolean;
-  notification: boolean;
-}
-
-const compareTime = (a: ScheduleItem, b: ScheduleItem) => {
-  const timeA = a.time.split(':').map(Number);
-  const timeB = b.time.split(':').map(Number);
+const compareTime = (a: string, b: string) => {
+  const timeA = a.split(':').map(Number);
+  const timeB = b.split(':').map(Number);
   
   if (timeA[0] !== timeB[0]) {
     return timeA[0] - timeB[0]; // Compare hours
@@ -37,49 +29,42 @@ interface DailyScheduleProps {
 }
 
 const DailySchedule = ({ notificationsEnabled = true }: DailyScheduleProps) => {
-  // Replace useState with useLocalStorage for scheduleItems to persist data
-  const [scheduleItems, setScheduleItems] = useLocalStorage<ScheduleItem[]>("scheduleItems", []);
+  // Use the hook from Supabase
+  const { scheduleItems, loading, addScheduleItem, updateScheduleItem, deleteScheduleItem, getTodaysItems } = useScheduleItems();
   
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<ScheduleItem | null>(null);
+  const [editingItem, setEditingItem] = useState<{id: string; time: string; title: string; description: string; notification: boolean} | null>(null);
   const [newItemTime, setNewItemTime] = useState("");
   const [newItemTitle, setNewItemTitle] = useState("");
   const [newItemDesc, setNewItemDesc] = useState("");
   const [newItemNotification, setNewItemNotification] = useState(true);
   
-  const handleAddOrUpdateItem = () => {
+  const handleAddOrUpdateItem = async () => {
     if (!newItemTime || !newItemTitle) return;
+    
+    const today = new Date().toISOString().split('T')[0];
     
     if (editingItem) {
       // Update existing item
-      setScheduleItems(prev => 
-        prev.map(item => 
-          item.id === editingItem.id 
-            ? { 
-                ...item, 
-                time: newItemTime, 
-                title: newItemTitle, 
-                description: newItemDesc, 
-                notification: newItemNotification 
-              }
-            : item
-        ).sort(compareTime)
-      );
+      await updateScheduleItem(editingItem.id, { 
+        time: newItemTime, 
+        title: newItemTitle, 
+        description: newItemDesc
+      });
+      
       toast({
         description: "Schedule item updated successfully",
       });
     } else {
       // Add new item
-      const newItem: ScheduleItem = {
-        id: Date.now().toString(),
+      await addScheduleItem({
         time: newItemTime,
         title: newItemTitle,
         description: newItemDesc,
-        completed: false,
-        notification: newItemNotification,
-      };
+        date: today,
+        completed: false
+      });
       
-      setScheduleItems(prev => [...prev, newItem].sort(compareTime));
       toast({
         description: "New schedule item added",
       });
@@ -88,37 +73,38 @@ const DailySchedule = ({ notificationsEnabled = true }: DailyScheduleProps) => {
     resetAndCloseDialog();
   };
   
-  const startEditItem = (item: ScheduleItem) => {
-    setEditingItem(item);
-    setNewItemTime(item.time);
+  const startEditItem = (item: any) => {
+    setEditingItem({
+      id: item.id || "",
+      time: item.time || "",
+      title: item.title,
+      description: item.description || "",
+      notification: true
+    });
+    setNewItemTime(item.time || "");
     setNewItemTitle(item.title);
-    setNewItemDesc(item.description);
-    setNewItemNotification(item.notification);
+    setNewItemDesc(item.description || "");
+    setNewItemNotification(true);
     setDialogOpen(true);
   };
   
-  const deleteItem = (id: string) => {
-    setScheduleItems(prev => prev.filter(item => item.id !== id));
+  const deleteItem = async (id: string) => {
+    await deleteScheduleItem(id);
     toast({
       description: "Schedule item deleted",
-      variant: "destructive",
     });
   };
   
-  const toggleItemCompleted = (id: string) => {
-    setScheduleItems(prev => 
-      prev.map(item => 
-        item.id === id ? { ...item, completed: !item.completed } : item
-      )
-    );
-  };
-
-  const toggleItemNotification = (id: string) => {
-    setScheduleItems(prev => 
-      prev.map(item => 
-        item.id === id ? { ...item, notification: !item.notification } : item
-      )
-    );
+  const toggleItemCompleted = async (id: string, completed: boolean) => {
+    await updateScheduleItem(id, { completed: !completed });
+    
+    if (!completed) {
+      // If marking as completed, show a toast notification
+      toast({
+        title: "Item completed!",
+        description: "Great job staying on track!",
+      });
+    }
   };
   
   const resetAndCloseDialog = () => {
@@ -140,6 +126,9 @@ const DailySchedule = ({ notificationsEnabled = true }: DailyScheduleProps) => {
       return time; // Fallback to the original format if parsing fails
     }
   };
+
+  // Get today's items
+  const todaysItems = getTodaysItems();
   
   return (
     <div className="space-y-6">
@@ -226,90 +215,113 @@ const DailySchedule = ({ notificationsEnabled = true }: DailyScheduleProps) => {
         {/* Timeline line */}
         <div className="absolute left-4 top-6 bottom-6 w-0.5 bg-muted" />
         
-        {scheduleItems.map(item => (
-          <Card key={item.id} className={cn(
-            "relative",
-            item.completed ? "bg-muted/30" : ""
-          )}>
-            <CardContent className="p-4 flex">
-              <div className="mr-4 relative">
-                <div className={cn(
-                  "h-8 w-8 rounded-full border flex items-center justify-center relative z-10 cursor-pointer",
-                  item.completed 
-                    ? "bg-primary border-primary text-white"
-                    : "bg-card border-muted"
-                )}
-                onClick={() => toggleItemCompleted(item.id)}
-                >
-                  {item.completed ? (
-                    <Check className="h-4 w-4" />
-                  ) : (
-                    <Clock className="h-4 w-4" />
+        {loading ? (
+          <div className="space-y-2">
+            {[1, 2, 3].map((i) => (
+              <Card key={i}>
+                <CardContent className="p-4 flex">
+                  <div className="mr-4">
+                    <Skeleton className="h-8 w-8 rounded-full" />
+                  </div>
+                  <div className="flex-1">
+                    <Skeleton className="h-4 w-24 mb-2" />
+                    <Skeleton className="h-5 w-40 mb-1" />
+                    <Skeleton className="h-4 w-32" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : todaysItems.length > 0 ? (
+          todaysItems.map(item => (
+            <Card key={item.id} className={cn(
+              "relative",
+              item.completed ? "bg-muted/30" : ""
+            )}>
+              <CardContent className="p-4 flex">
+                <div className="mr-4 relative">
+                  <div className={cn(
+                    "h-8 w-8 rounded-full border flex items-center justify-center relative z-10 cursor-pointer",
+                    item.completed 
+                      ? "bg-primary border-primary text-white"
+                      : "bg-card border-muted"
                   )}
-                </div>
-              </div>
-              
-              <div className="flex-1">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="font-medium text-sm text-muted-foreground">
-                      {formatTimeDisplay(item.time)}
-                    </p>
-                    <h3 className={cn(
-                      "font-medium",
-                      item.completed ? "line-through text-muted-foreground" : ""
-                    )}>
-                      {item.title}
-                    </h3>
-                    {item.description && (
-                      <p className={cn(
-                        "text-sm text-muted-foreground mt-1",
-                        item.completed ? "line-through" : ""
-                      )}>
-                        {item.description}
-                      </p>
+                  onClick={() => item.id && toggleItemCompleted(item.id, !!item.completed)}
+                  >
+                    {item.completed ? (
+                      <Check className="h-4 w-4" />
+                    ) : (
+                      <Clock className="h-4 w-4" />
                     )}
                   </div>
-                  
-                  <div className="flex gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className={cn(
-                        "h-8 w-8 p-0",
-                        !notificationsEnabled && "opacity-50 cursor-not-allowed"
+                </div>
+                
+                <div className="flex-1">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="font-medium text-sm text-muted-foreground">
+                        {item.time ? formatTimeDisplay(item.time) : "No time set"}
+                      </p>
+                      <h3 className={cn(
+                        "font-medium",
+                        item.completed ? "line-through text-muted-foreground" : ""
+                      )}>
+                        {item.title}
+                      </h3>
+                      {item.description && (
+                        <p className={cn(
+                          "text-sm text-muted-foreground mt-1",
+                          item.completed ? "line-through" : ""
+                        )}>
+                          {item.description}
+                        </p>
                       )}
-                      disabled={!notificationsEnabled}
-                      onClick={() => toggleItemNotification(item.id)}
-                      title={item.notification ? "Turn off notification" : "Turn on notification"}
-                    >
-                      {item.notification ? 
-                        <Bell className="h-4 w-4" /> : 
-                        <BellOff className="h-4 w-4" />
-                      }
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0"
-                      onClick={() => startEditItem(item)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0 text-destructive hover:text-destructive/80 hover:bg-destructive/10"
-                      onClick={() => deleteItem(item.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    </div>
+                    
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className={cn(
+                          "h-8 w-8 p-0",
+                          !notificationsEnabled && "opacity-50 cursor-not-allowed"
+                        )}
+                        disabled={!notificationsEnabled}
+                        title={notificationsEnabled ? "Notifications enabled" : "Notifications disabled"}
+                      >
+                        {notificationsEnabled ? 
+                          <Bell className="h-4 w-4" /> : 
+                          <BellOff className="h-4 w-4" />
+                        }
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        onClick={() => item.id && startEditItem(item)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 text-destructive hover:text-destructive/80 hover:bg-destructive/10"
+                        onClick={() => item.id && deleteItem(item.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          ))
+        ) : (
+          <div className="text-center py-6 mt-6">
+            <p className="text-muted-foreground">No schedule items for today</p>
+            <p className="text-sm mt-2 text-muted-foreground">Add your first schedule item using the button above</p>
+          </div>
+        )}
       </div>
     </div>
   );

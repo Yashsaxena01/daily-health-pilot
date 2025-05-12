@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import PageContainer from "@/components/layout/PageContainer";
 import DailySchedule from "@/components/schedule/DailySchedule";
 import ActivityTracker from "@/components/activity/ActivityTracker";
@@ -9,6 +9,10 @@ import { Activity, Bell, Calendar, Clock, BellOff, Utensils } from "lucide-react
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import useLocalStorage from "@/hooks/useLocalStorage";
+import { useScheduleItems } from "@/hooks/useScheduleItems";
+import { useActivityData } from "@/hooks/useActivityData";
+import { toast } from "@/components/ui/use-toast";
+import { format } from "date-fns";
 
 const Schedule = () => {
   // Use localStorage to persist notification settings
@@ -18,17 +22,46 @@ const Schedule = () => {
     medications: true,
     workouts: false
   });
-
+  
+  // Get data from hooks to ensure they're fresh when switching tabs
+  const { refreshScheduleItems } = useScheduleItems();
+  const { refreshActivities } = useActivityData();
+  
+  // Tab state
+  const [activeTab, setActiveTab] = useState("schedule");
+  
   // Force scroll to top when the component mounts
-  useState(() => {
+  useEffect(() => {
     window.scrollTo(0, 0);
-  });
+  }, []);
+  
+  // Show welcome toast for today
+  useEffect(() => {
+    const today = format(new Date(), "EEEE, MMMM d");
+    toast({
+      title: `Schedule for ${today}`,
+      description: "Plan your day and track your activities!",
+    });
+  }, []);
+  
+  // Refresh data when tab changes
+  useEffect(() => {
+    if (activeTab === "schedule") {
+      refreshScheduleItems();
+    } else if (activeTab === "activities") {
+      refreshActivities();
+    }
+  }, [activeTab, refreshScheduleItems, refreshActivities]);
 
   const toggleNotification = (key: keyof typeof notifications) => {
     setNotifications(prev => ({
       ...prev,
       [key]: !prev[key]
     }));
+    
+    toast({
+      description: `${key.charAt(0).toUpperCase() + key.slice(1)} notifications ${!notifications[key] ? 'enabled' : 'disabled'}`,
+    });
   };
 
   return (
@@ -89,7 +122,7 @@ const Schedule = () => {
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="schedule" className="pb-20">
+      <Tabs defaultValue="schedule" className="pb-20" onValueChange={setActiveTab} value={activeTab}>
         <TabsList className="grid w-full grid-cols-2 mb-4">
           <TabsTrigger value="schedule" className="flex items-center gap-2">
             <Clock className="h-4 w-4" />

@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from "@/components/ui/use-toast";
 
@@ -16,21 +16,18 @@ export const useScheduleItems = () => {
   const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchScheduleItems();
-  }, []);
-
-  const fetchScheduleItems = async () => {
+  const fetchScheduleItems = useCallback(async () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
         .from('schedule_items')
         .select('*')
-        .order('date', { ascending: true });
+        .order('date', { ascending: false })
+        .order('time', { ascending: true });
 
       if (error) throw error;
 
-      setScheduleItems(data);
+      setScheduleItems(data || []);
     } catch (error) {
       console.error('Error fetching schedule items:', error);
       toast({
@@ -40,7 +37,11 @@ export const useScheduleItems = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchScheduleItems();
+  }, [fetchScheduleItems]);
 
   const addScheduleItem = async (item: Omit<ScheduleItem, 'id'>) => {
     try {
@@ -50,9 +51,11 @@ export const useScheduleItems = () => {
         .select();
 
       if (error) throw error;
-
-      setScheduleItems(prev => [...prev, data[0]]);
-      return data[0];
+      
+      if (data && data[0]) {
+        setScheduleItems(prev => [...prev, data[0]]);
+        return data[0];
+      }
     } catch (error) {
       console.error('Error adding schedule item:', error);
       toast({
@@ -76,12 +79,15 @@ export const useScheduleItems = () => {
           item.id === id ? { ...item, ...updates } : item
         )
       );
+      
+      return true;
     } catch (error) {
       console.error('Error updating schedule item:', error);
       toast({
         description: "Failed to update schedule item",
         variant: "destructive",
       });
+      return false;
     }
   };
 
@@ -95,12 +101,14 @@ export const useScheduleItems = () => {
       if (error) throw error;
 
       setScheduleItems(prev => prev.filter(item => item.id !== id));
+      return true;
     } catch (error) {
       console.error('Error deleting schedule item:', error);
       toast({
         description: "Failed to delete schedule item",
         variant: "destructive",
       });
+      return false;
     }
   };
 
@@ -108,7 +116,23 @@ export const useScheduleItems = () => {
     const today = new Date().toISOString().split('T')[0];
     return scheduleItems
       .filter(item => item.date === today)
-      .sort((a, b) => a.completed === b.completed ? 0 : a.completed ? 1 : -1);
+      .sort((a, b) => {
+        // First sort by completion status
+        if (a.completed !== b.completed) {
+          return a.completed ? 1 : -1;
+        }
+        
+        // Then sort by time if both have time
+        if (a.time && b.time) {
+          return a.time.localeCompare(b.time);
+        }
+        
+        // If one has time and the other doesn't, prioritize the one with time
+        if (a.time && !b.time) return -1;
+        if (!a.time && b.time) return 1;
+        
+        return 0;
+      });
   };
 
   return {
