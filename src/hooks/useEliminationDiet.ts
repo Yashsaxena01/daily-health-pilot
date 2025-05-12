@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from "@/components/ui/use-toast";
@@ -12,6 +11,7 @@ export interface Food {
   reaction_level?: 'none' | 'mild' | 'severe';
   scheduled_date?: string;  // Now supported by the database
   order?: number;          // Now supported by the database
+  category_id?: string;
 }
 
 export interface FoodCategory {
@@ -20,6 +20,9 @@ export interface FoodCategory {
   expanded: boolean;
   foods: Food[];
   order?: number;         // Now supported by the database
+  user_id?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export const useEliminationDiet = () => {
@@ -410,7 +413,7 @@ export const useEliminationDiet = () => {
       const dbUpdates: any = {
         name: updates.name,
         introduced: updates.introduced,
-        introduction_date: updates.introduced && !updates.introduction_date 
+        introduction_date: updates.introduced && !updates.introduced_date 
           ? new Date().toISOString().split('T')[0]
           : updates.introduction_date,
         reaction: updates.reaction,

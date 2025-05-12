@@ -45,6 +45,7 @@ export type Database = {
           expanded: boolean | null
           id: string
           name: string
+          order: number | null
           updated_at: string | null
           user_id: string | null
         }
@@ -53,6 +54,7 @@ export type Database = {
           expanded?: boolean | null
           id?: string
           name: string
+          order?: number | null
           updated_at?: string | null
           user_id?: string | null
         }
@@ -61,6 +63,7 @@ export type Database = {
           expanded?: boolean | null
           id?: string
           name?: string
+          order?: number | null
           updated_at?: string | null
           user_id?: string | null
         }
@@ -101,8 +104,10 @@ export type Database = {
           introduced: boolean | null
           introduction_date: string | null
           name: string
+          order: number | null
           reaction: string | null
           reaction_level: string | null
+          scheduled_date: string | null
           updated_at: string | null
         }
         Insert: {
@@ -112,8 +117,10 @@ export type Database = {
           introduced?: boolean | null
           introduction_date?: string | null
           name: string
+          order?: number | null
           reaction?: string | null
           reaction_level?: string | null
+          scheduled_date?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -123,8 +130,10 @@ export type Database = {
           introduced?: boolean | null
           introduction_date?: string | null
           name?: string
+          order?: number | null
           reaction?: string | null
           reaction_level?: string | null
+          scheduled_date?: string | null
           updated_at?: string | null
         }
         Relationships: [

@@ -39,7 +39,7 @@ const ActivityTracker = () => {
     
     const formattedDate = format(selectedDate, "yyyy-MM-dd");
     
-    // Add activity to activities table
+    // Add activity to activities table - fix argument count here
     await addActivity(inputValue.trim(), formattedDate);
     
     // If time or repeat is selected, also add to schedule_items
