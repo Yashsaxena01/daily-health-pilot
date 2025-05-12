@@ -10,6 +10,7 @@ export interface ScheduleItem {
   time?: string;
   date: string;
   completed: boolean;
+  repeatFrequency?: 'daily' | 'alternate' | 'weekly' | 'monthly' | 'none';
 }
 
 export const useScheduleItems = () => {
@@ -112,17 +113,16 @@ export const useScheduleItems = () => {
     }
   };
 
-  const getTodaysItems = () => {
-    const today = new Date().toISOString().split('T')[0];
+  const getItemsByDateRange = (startDate: string, endDate: string) => {
     return scheduleItems
-      .filter(item => item.date === today)
+      .filter(item => item.date >= startDate && item.date <= endDate)
       .sort((a, b) => {
-        // First sort by completion status
-        if (a.completed !== b.completed) {
-          return a.completed ? 1 : -1;
+        // First compare by date
+        if (a.date !== b.date) {
+          return a.date.localeCompare(b.date);
         }
         
-        // Then sort by time if both have time
+        // If same date, compare by time if both have time
         if (a.time && b.time) {
           return a.time.localeCompare(b.time);
         }
@@ -141,7 +141,7 @@ export const useScheduleItems = () => {
     addScheduleItem,
     updateScheduleItem,
     deleteScheduleItem,
-    getTodaysItems,
+    getItemsByDateRange,
     refreshScheduleItems: fetchScheduleItems
   };
 };

@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import PageContainer from "@/components/layout/PageContainer";
 import MealPlanner from "@/components/food/MealPlanner";
 import EliminationDiet from "@/components/food/EliminationDiet";
@@ -7,12 +7,25 @@ import FoodSummary from "@/components/food/FoodSummary";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, AlertCircle, BarChart, Utensils } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useEliminationDiet } from "@/hooks/useEliminationDiet";
 
 const Food = () => {
+  const [activeTab, setActiveTab] = useState("summary");
+  const { getTodaysFood, refreshEliminationDiet } = useEliminationDiet();
+
   // Force scroll to top when the component mounts
-  useState(() => {
+  useEffect(() => {
     window.scrollTo(0, 0);
-  });
+  }, []);
+
+  // Refresh data when tab changes to elimination
+  useEffect(() => {
+    if (activeTab === "elimination") {
+      refreshEliminationDiet();
+    }
+  }, [activeTab, refreshEliminationDiet]);
+
+  const todayRecommendation = getTodaysFood();
 
   return (
     <PageContainer>
@@ -46,7 +59,39 @@ const Food = () => {
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="summary" className="pb-20">
+      {todayRecommendation && (
+        <Card className="mb-6 border-primary/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg font-medium flex items-center">
+              Today's Food Introduction
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="font-medium">{todayRecommendation.food.name}</p>
+                <p className="text-sm text-muted-foreground">
+                  From category: {todayRecommendation.category.name}
+                </p>
+              </div>
+              <Button 
+                onClick={() => setActiveTab("elimination")}
+                variant="outline"
+                className="text-sm"
+              >
+                Go to Elimination Diet
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Tabs 
+        defaultValue="summary" 
+        value={activeTab} 
+        onValueChange={setActiveTab}
+        className="pb-20"
+      >
         <TabsList className="grid w-full grid-cols-3 mb-4">
           <TabsTrigger value="summary" className="flex items-center gap-2">
             <BarChart className="h-4 w-4" />

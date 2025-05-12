@@ -1,72 +1,38 @@
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Check, ChevronDown, ChevronUp, Plus, Trash, Edit, X } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, Plus, Trash, Edit, X, GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
-import useLocalStorage from "@/hooks/useLocalStorage";
 import { toast } from "@/components/ui/use-toast";
+import { useEliminationDiet } from "@/hooks/useEliminationDiet";
+import { format } from "date-fns";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export interface EliminationDietProps {
   colorCoding?: boolean;
 }
 
-interface FoodCategory {
-  id: string;
-  name: string;
-  foods: Food[];
-  expanded: boolean;
-}
-
-interface Food {
-  id: string;
-  name: string;
-  introduced: boolean;
-  date?: string;
-  reaction?: string;
-  reactionLevel?: "none" | "mild" | "severe";
-}
-
-const initialCategories: FoodCategory[] = [
-  {
-    id: "1",
-    name: "Grains",
-    foods: [
-      { id: "g1", name: "Wheat", introduced: false },
-      { id: "g2", name: "Rice", introduced: false },
-      { id: "g3", name: "Oats", introduced: false },
-      { id: "g4", name: "Corn", introduced: false },
-    ],
-    expanded: true,
-  },
-  {
-    id: "2",
-    name: "Dairy",
-    foods: [
-      { id: "d1", name: "Milk", introduced: false },
-      { id: "d2", name: "Cheese", introduced: false },
-      { id: "d3", name: "Yogurt", introduced: false },
-    ],
-    expanded: true,
-  },
-  {
-    id: "3",
-    name: "FODMAPs",
-    foods: [
-      { id: "f1", name: "Onion", introduced: false },
-      { id: "f2", name: "Garlic", introduced: false },
-      { id: "f3", name: "Apples", introduced: false },
-      { id: "f4", name: "Honey", introduced: false },
-    ],
-    expanded: false,
-  },
-];
-
 const EliminationDiet = ({ colorCoding = false }: EliminationDietProps) => {
-  const [categories, setCategories] = useLocalStorage<FoodCategory[]>("eliminationDietCategories", initialCategories);
+  const { 
+    categories, 
+    loading,
+    addCategory,
+    updateCategory,
+    deleteCategory,
+    toggleCategoryExpanded,
+    addFood,
+    updateFood,
+    deleteFood,
+    markFoodIntroduced,
+    reorderCategories,
+    reorderFoods,
+    getTodaysFood
+  } = useEliminationDiet();
+  
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [isAddingFood, setIsAddingFood] = useState<string | null>(null);
   const [newCategoryName, setNewCategoryName] = useState("");
@@ -76,203 +42,81 @@ const EliminationDiet = ({ colorCoding = false }: EliminationDietProps) => {
   const [editingFoodId, setEditingFoodId] = useState<{categoryId: string, foodId: string} | null>(null);
   const [editingFoodName, setEditingFoodName] = useState("");
   
-  const [selectedFood, setSelectedFood] = useState<Food | null>(null);
+  const [selectedFood, setSelectedFood] = useState<any | null>(null);
   const [reactionText, setReactionText] = useState("");
   const [reactionLevel, setReactionLevel] = useState<"none" | "mild" | "severe">("none");
   
+  // Drag and drop state
+  const [draggedItem, setDraggedItem] = useState<{type: 'category' | 'food', id: string, categoryId?: string} | null>(null);
+  const dragOverItemRef = useRef<{type: 'category' | 'food', id: string, categoryId?: string} | null>(null);
+  
   // Get today's recommended food to introduce
-  const getTodayFood = () => {
-    for (const category of categories) {
-      const nextFood = category.foods.find(food => !food.introduced);
-      if (nextFood) {
-        return { food: nextFood, category };
-      }
-    }
-    return null;
-  };
-
-  const todayRecommendation = getTodayFood();
+  const todayRecommendation = getTodaysFood();
   
-  const toggleCategoryExpand = (categoryId: string) => {
-    setCategories(prev => 
-      prev.map(cat => 
-        cat.id === categoryId ? { ...cat, expanded: !cat.expanded } : cat
-      )
-    );
-  };
-  
-  const handleAddCategory = () => {
+  const handleAddCategory = async () => {
     if (!newCategoryName) return;
     
-    const newCategory: FoodCategory = {
-      id: Date.now().toString(),
-      name: newCategoryName,
-      foods: [],
-      expanded: true,
-    };
-    
-    setCategories([...categories, newCategory]);
+    await addCategory(newCategoryName);
     setNewCategoryName("");
     setIsAddingCategory(false);
-    
-    toast({
-      description: `Category "${newCategoryName}" added successfully.`,
-    });
   };
 
   const handleEditCategory = (categoryId: string) => {
     if (!editingCategoryName) return;
     
-    setCategories(prev => 
-      prev.map(cat => 
-        cat.id === categoryId ? { ...cat, name: editingCategoryName } : cat
-      )
-    );
-    
+    updateCategory(categoryId, editingCategoryName);
     setEditingCategoryId(null);
     setEditingCategoryName("");
-    
-    toast({
-      description: "Category updated successfully.",
-    });
   };
   
   const handleDeleteCategory = (categoryId: string) => {
-    setCategories(prev => prev.filter(cat => cat.id !== categoryId));
-    
-    toast({
-      description: "Category deleted successfully.",
-    });
+    deleteCategory(categoryId);
   };
   
   const handleAddFood = (categoryId: string) => {
     if (!newFoodName) return;
     
-    const newFood: Food = {
-      id: Date.now().toString(),
-      name: newFoodName,
-      introduced: false,
-    };
-    
-    setCategories(prev => 
-      prev.map(cat => 
-        cat.id === categoryId 
-          ? { ...cat, foods: [...cat.foods, newFood] } 
-          : cat
-      )
-    );
-    
+    addFood(categoryId, newFoodName);
     setNewFoodName("");
     setIsAddingFood(null);
-    
-    toast({
-      description: `Food "${newFoodName}" added successfully.`,
-    });
   };
   
   const handleEditFood = (categoryId: string, foodId: string) => {
     if (!editingFoodName) return;
     
-    setCategories(prev => 
-      prev.map(cat => 
-        cat.id === categoryId 
-          ? { 
-              ...cat, 
-              foods: cat.foods.map(f =>
-                f.id === foodId ? { ...f, name: editingFoodName } : f
-              )
-            } 
-          : cat
-      )
-    );
-    
+    updateFood(categoryId, foodId, { name: editingFoodName });
     setEditingFoodId(null);
     setEditingFoodName("");
-    
-    toast({
-      description: "Food updated successfully.",
-    });
   };
   
   const handleDeleteFood = (categoryId: string, foodId: string) => {
-    setCategories(prev => 
-      prev.map(cat => 
-        cat.id === categoryId 
-          ? { ...cat, foods: cat.foods.filter(f => f.id !== foodId) } 
-          : cat
-      )
-    );
-    
-    toast({
-      description: "Food deleted successfully.",
-    });
+    deleteFood(categoryId, foodId);
   };
   
-  const handleToggleFood = (categoryId: string, foodId: string) => {
+  const handleToggleFood = (categoryId: string, foodId: string, food: any) => {
     // Find the food
-    const category = categories.find(c => c.id === categoryId);
-    if (!category) return;
-    
-    const food = category.foods.find(f => f.id === foodId);
-    if (!food) return;
-    
     if (food.introduced) {
       // If already introduced, just toggle it off
-      setCategories(prev => 
-        prev.map(cat => 
-          cat.id === categoryId 
-            ? { 
-                ...cat, 
-                foods: cat.foods.map(f =>
-                  f.id === foodId ? { ...f, introduced: false, reaction: undefined, date: undefined, reactionLevel: undefined } : f
-                )
-              } 
-            : cat
-        )
-      );
+      updateFood(categoryId, foodId, { introduced: false, reaction: undefined, introduction_date: undefined, reaction_level: undefined });
     } else {
       // If not introduced, show reaction form
-      setSelectedFood(food);
+      setSelectedFood({...food, categoryId, foodId});
     }
   };
   
   const handleSaveReaction = () => {
     if (!selectedFood) return;
     
-    const selectedCategoryId = categories.find(cat => 
-      cat.foods.some(f => f.id === selectedFood.id)
-    )?.id;
-    
-    if (!selectedCategoryId) return;
-    
-    setCategories(prev => 
-      prev.map(cat => 
-        cat.id === selectedCategoryId 
-          ? { 
-              ...cat, 
-              foods: cat.foods.map(f =>
-                f.id === selectedFood.id 
-                  ? { 
-                      ...f, 
-                      introduced: true, 
-                      date: new Date().toISOString().split('T')[0], 
-                      reaction: reactionText || "No specific reaction noted.", 
-                      reactionLevel
-                    } 
-                  : f
-              )
-            } 
-          : cat
-      )
+    markFoodIntroduced(
+      selectedFood.categoryId, 
+      selectedFood.foodId, 
+      reactionLevel, 
+      reactionText || "No specific reaction noted."
     );
     
     setSelectedFood(null);
     setReactionText("");
     setReactionLevel("none");
-    
-    toast({
-      description: `Reaction to "${selectedFood.name}" recorded.`,
-    });
   };
 
   const getReactionColor = (reactionLevel?: string) => {
@@ -284,6 +128,83 @@ const EliminationDiet = ({ colorCoding = false }: EliminationDietProps) => {
       default: return "";
     }
   };
+  
+  // Drag and drop handlers
+  const handleDragStart = (e: React.DragEvent, type: 'category' | 'food', id: string, categoryId?: string) => {
+    setDraggedItem({type, id, categoryId});
+  };
+  
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+  
+  const handleDragEnter = (e: React.DragEvent, type: 'category' | 'food', id: string, categoryId?: string) => {
+    e.preventDefault();
+    dragOverItemRef.current = {type, id, categoryId};
+  };
+  
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    
+    if (!draggedItem || !dragOverItemRef.current) return;
+    
+    const draggedType = draggedItem.type;
+    const dragOverType = dragOverItemRef.current.type;
+    
+    // Can't drop a category inside a food
+    if (draggedType === 'category' && dragOverType === 'food') return;
+    
+    // Can't drop a food from one category to another (for simplicity)
+    if (draggedType === 'food' && dragOverType === 'food' &&
+        draggedItem.categoryId !== dragOverItemRef.current.categoryId) return;
+    
+    if (draggedType === 'category' && dragOverType === 'category') {
+      // Reordering categories
+      const categoryIds = categories.map(cat => cat.id!);
+      const fromIndex = categoryIds.indexOf(draggedItem.id);
+      const toIndex = categoryIds.indexOf(dragOverItemRef.current.id);
+      
+      if (fromIndex !== -1 && toIndex !== -1) {
+        const newCategoryIds = [...categoryIds];
+        newCategoryIds.splice(fromIndex, 1);
+        newCategoryIds.splice(toIndex, 0, draggedItem.id);
+        
+        reorderCategories(newCategoryIds);
+      }
+    } else if (draggedType === 'food' && dragOverType === 'food' && 
+               draggedItem.categoryId === dragOverItemRef.current.categoryId) {
+      // Reordering foods within the same category
+      const categoryId = draggedItem.categoryId!;
+      const category = categories.find(c => c.id === categoryId);
+      
+      if (category) {
+        const foodIds = category.foods.map(f => f.id!);
+        const fromIndex = foodIds.indexOf(draggedItem.id);
+        const toIndex = foodIds.indexOf(dragOverItemRef.current.id);
+        
+        if (fromIndex !== -1 && toIndex !== -1) {
+          const newFoodIds = [...foodIds];
+          newFoodIds.splice(fromIndex, 1);
+          newFoodIds.splice(toIndex, 0, draggedItem.id);
+          
+          reorderFoods(categoryId, newFoodIds);
+        }
+      }
+    }
+    
+    setDraggedItem(null);
+    dragOverItemRef.current = null;
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-40 w-full" />
+        <Skeleton className="h-40 w-full" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -297,9 +218,18 @@ const EliminationDiet = ({ colorCoding = false }: EliminationDietProps) => {
               <div>
                 <h3 className="font-medium">{todayRecommendation.food.name}</h3>
                 <p className="text-sm text-muted-foreground">From category: {todayRecommendation.category.name}</p>
+                {todayRecommendation.food.scheduled_date && (
+                  <p className="text-xs text-muted-foreground">
+                    Scheduled for: {format(new Date(todayRecommendation.food.scheduled_date), "PPP")}
+                  </p>
+                )}
               </div>
               <Button 
-                onClick={() => handleToggleFood(todayRecommendation.category.id, todayRecommendation.food.id)}
+                onClick={() => handleToggleFood(
+                  todayRecommendation.category.id!, 
+                  todayRecommendation.food.id!, 
+                  todayRecommendation.food
+                )}
                 variant="outline"
                 className="gap-2"
               >
@@ -418,19 +348,42 @@ const EliminationDiet = ({ colorCoding = false }: EliminationDietProps) => {
       )}
       
       <div className="space-y-3">
+        <p className="text-sm text-muted-foreground mb-1">
+          Drag and drop categories and food items to change their order
+        </p>
+        
         {categories.map(category => (
-          <div key={category.id}>
+          <div 
+            key={category.id}
+            draggable
+            onDragStart={(e) => handleDragStart(e, 'category', category.id!)}
+            onDragOver={handleDragOver}
+            onDragEnter={(e) => handleDragEnter(e, 'category', category.id!)}
+            onDrop={handleDrop}
+            className={cn(
+              "border rounded-lg",
+              draggedItem?.type === 'category' && draggedItem.id === category.id ? 
+                "opacity-50 border-dashed" : ""
+            )}
+          >
             <div className="flex items-center justify-between bg-white p-3 rounded-lg border shadow-sm">
-              {editingCategoryId === category.id ? (
-                <Input 
-                  value={editingCategoryName}
-                  onChange={e => setEditingCategoryName(e.target.value)}
-                  className="max-w-[60%]"
-                  autoFocus
-                />
-              ) : (
-                <h3 className="font-medium">{category.name}</h3>
-              )}
+              <div className="flex items-center gap-2">
+                <div className="cursor-move text-muted-foreground">
+                  <GripVertical className="h-4 w-4" />
+                </div>
+                
+                {editingCategoryId === category.id ? (
+                  <Input 
+                    value={editingCategoryName}
+                    onChange={e => setEditingCategoryName(e.target.value)}
+                    className="max-w-[60%]"
+                    autoFocus
+                  />
+                ) : (
+                  <h3 className="font-medium">{category.name}</h3>
+                )}
+              </div>
+              
               <div className="flex items-center gap-2">
                 {editingCategoryId === category.id ? (
                   <>
@@ -449,7 +402,7 @@ const EliminationDiet = ({ colorCoding = false }: EliminationDietProps) => {
                       variant="outline"
                       size="sm"
                       className="h-8"
-                      onClick={() => handleEditCategory(category.id)}
+                      onClick={() => handleEditCategory(category.id!)}
                     >
                       <Check className="h-4 w-4" />
                     </Button>
@@ -460,7 +413,7 @@ const EliminationDiet = ({ colorCoding = false }: EliminationDietProps) => {
                       variant="ghost"
                       size="sm"
                       className="h-8 w-8 p-0"
-                      onClick={() => toggleCategoryExpand(category.id)}
+                      onClick={() => toggleCategoryExpanded(category.id!)}
                     >
                       {category.expanded ? (
                         <ChevronUp className="h-4 w-4" />
@@ -483,7 +436,7 @@ const EliminationDiet = ({ colorCoding = false }: EliminationDietProps) => {
                       variant="ghost"
                       size="sm"
                       className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                      onClick={() => handleDeleteCategory(category.id)}
+                      onClick={() => handleDeleteCategory(category.id!)}
                     >
                       <Trash className="h-4 w-4" />
                     </Button>
@@ -523,7 +476,7 @@ const EliminationDiet = ({ colorCoding = false }: EliminationDietProps) => {
                       Cancel
                     </Button>
                     <Button
-                      onClick={() => handleAddFood(category.id)}
+                      onClick={() => handleAddFood(category.id!)}
                       disabled={!newFoodName}
                       className="flex-1"
                     >
@@ -542,9 +495,16 @@ const EliminationDiet = ({ colorCoding = false }: EliminationDietProps) => {
                   category.foods.map(food => (
                     <div
                       key={food.id}
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, 'food', food.id!, category.id)}
+                      onDragOver={handleDragOver}
+                      onDragEnter={(e) => handleDragEnter(e, 'food', food.id!, category.id)}
+                      onDrop={handleDrop}
                       className={cn(
                         "flex items-center justify-between p-2 rounded-md",
-                        food.introduced ? "bg-muted/50" : "hover:bg-muted/30"
+                        food.introduced ? "bg-muted/50" : "hover:bg-muted/30",
+                        draggedItem?.type === 'food' && draggedItem.id === food.id ? 
+                          "opacity-50 border-dashed border" : ""
                       )}
                     >
                       <div className="flex-1">
@@ -569,28 +529,36 @@ const EliminationDiet = ({ colorCoding = false }: EliminationDietProps) => {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleEditFood(category.id, food.id)}
+                              onClick={() => handleEditFood(category.id!, food.id!)}
                             >
                               Save
                             </Button>
                           </div>
                         ) : (
                           <div className="flex items-center">
+                            <div className="cursor-move text-muted-foreground mr-1">
+                              <GripVertical className="h-4 w-4" />
+                            </div>
                             <div
                               className={cn(
                                 "h-5 w-5 rounded-full border flex items-center justify-center mr-2 cursor-pointer",
                                 food.introduced
                                   ? "border-muted-foreground text-white"
                                   : "border-muted-foreground",
-                                getReactionColor(food.reactionLevel)
+                                getReactionColor(food.reaction_level)
                               )}
-                              onClick={() => handleToggleFood(category.id, food.id)}
+                              onClick={() => food.id && handleToggleFood(category.id!, food.id, food)}
                             >
                               {food.introduced && <Check className="h-3 w-3" />}
                             </div>
                             <span className={food.introduced ? "line-through text-muted-foreground" : ""}>
                               {food.name}
                             </span>
+                            {!food.introduced && food.scheduled_date && (
+                              <span className="text-xs ml-2 text-muted-foreground">
+                                ({format(new Date(food.scheduled_date), "MMM d")})
+                              </span>
+                            )}
                           </div>
                         )}
                         
@@ -604,9 +572,9 @@ const EliminationDiet = ({ colorCoding = false }: EliminationDietProps) => {
                       <div className="flex items-center gap-1">
                         {!(editingFoodId?.categoryId === category.id && editingFoodId?.foodId === food.id) && (
                           <>
-                            {food.date && (
+                            {food.introduction_date && (
                               <span className="text-xs text-muted-foreground mr-2">
-                                {new Date(food.date).toLocaleDateString()}
+                                {format(new Date(food.introduction_date), "MMM d")}
                               </span>
                             )}
                             <Button
@@ -614,7 +582,7 @@ const EliminationDiet = ({ colorCoding = false }: EliminationDietProps) => {
                               size="sm"
                               className="h-6 w-6 p-0"
                               onClick={() => {
-                                setEditingFoodId({categoryId: category.id, foodId: food.id});
+                                setEditingFoodId({categoryId: category.id!, foodId: food.id!});
                                 setEditingFoodName(food.name);
                               }}
                             >
@@ -624,7 +592,7 @@ const EliminationDiet = ({ colorCoding = false }: EliminationDietProps) => {
                               variant="ghost"
                               size="sm"
                               className="h-6 w-6 p-0 text-destructive hover:text-destructive"
-                              onClick={() => handleDeleteFood(category.id, food.id)}
+                              onClick={() => handleDeleteFood(category.id!, food.id!)}
                             >
                               <Trash className="h-3 w-3" />
                             </Button>

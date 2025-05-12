@@ -1,25 +1,62 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Check, Edit, Plus, Trash2 } from "lucide-react";
+import { Check, Edit, Plus, Trash2, Clock, Calendar } from "lucide-react";
 import { useActivityData } from "@/hooks/useActivityData";
 import { Skeleton } from "@/components/ui/skeleton";
-import { format } from "date-fns";
+import { format, addDays, addWeeks, addMonths, parse } from "date-fns";
+import { useScheduleItems } from "@/hooks/useScheduleItems";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
+import { 
+  Popover, 
+  PopoverContent, 
+  PopoverTrigger 
+} from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
 
 const ActivityTracker = () => {
   const { activities, loading, addActivity, updateActivity, toggleActivityCompleted, deleteActivity } = useActivityData();
+  const { addScheduleItem } = useScheduleItems();
   
   const [isAdding, setIsAdding] = useState(false);
   const [editingActivityId, setEditingActivityId] = useState<string | null>(null);
   const [inputValue, setInputValue] = useState("");
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedTime, setSelectedTime] = useState("");
+  const [repeatFrequency, setRepeatFrequency] = useState<"none" | "daily" | "alternate" | "weekly" | "monthly">("none");
   
   const handleAddActivity = async () => {
     if (!inputValue.trim()) return;
     
-    await addActivity(inputValue.trim());
+    const formattedDate = format(selectedDate, "yyyy-MM-dd");
+    
+    // Add activity to activities table
+    await addActivity(inputValue.trim(), formattedDate);
+    
+    // If time or repeat is selected, also add to schedule_items
+    if (selectedTime || repeatFrequency !== "none") {
+      await addScheduleItem({
+        title: inputValue.trim(),
+        description: `Activity scheduled for ${format(selectedDate, "PPP")}${selectedTime ? ` at ${selectedTime}` : ''}`,
+        time: selectedTime,
+        date: formattedDate,
+        completed: false,
+        repeatFrequency
+      });
+    }
+    
     setInputValue("");
+    setSelectedTime("");
+    setRepeatFrequency("none");
     setIsAdding(false);
   };
   
@@ -51,19 +88,78 @@ const ActivityTracker = () => {
       
       {(isAdding || editingActivityId) && (
         <Card>
-          <CardContent className="pt-6">
-            <div className="flex gap-2">
+          <CardContent className="pt-6 space-y-4">
+            <div className="space-y-2">
               <Input
                 placeholder="Description of your activity"
                 value={inputValue}
                 onChange={e => setInputValue(e.target.value)}
-                className="flex-1"
               />
+              
+              {isAdding && (
+                <>
+                  <div className="flex gap-2 items-center">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "justify-start text-left font-normal w-full",
+                            !selectedDate && "text-muted-foreground"
+                          )}
+                        >
+                          <Calendar className="mr-2 h-4 w-4" />
+                          {selectedDate ? format(selectedDate, "PPP") : "Pick a date"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarComponent
+                          mode="single"
+                          selected={selectedDate}
+                          onSelect={(date) => date && setSelectedDate(date)}
+                          initialFocus
+                          className="p-3 pointer-events-auto"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  
+                  <div className="flex gap-2 items-center">
+                    <Input
+                      type="time"
+                      value={selectedTime}
+                      onChange={e => setSelectedTime(e.target.value)}
+                      placeholder="Time (optional)"
+                      className="flex-1"
+                    />
+                  </div>
+                  
+                  <div className="flex gap-2 items-center">
+                    <Select value={repeatFrequency} onValueChange={(value) => setRepeatFrequency(value as any)}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Repeat frequency" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No repeat</SelectItem>
+                        <SelectItem value="daily">Daily</SelectItem>
+                        <SelectItem value="alternate">Alternate days</SelectItem>
+                        <SelectItem value="weekly">Weekly</SelectItem>
+                        <SelectItem value="monthly">Monthly</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              )}
+            </div>
+            
+            <div className="flex gap-2">
               <Button 
                 onClick={editingActivityId ? handleUpdateActivity : handleAddActivity}
                 disabled={!inputValue.trim()}
+                className="flex-1"
               >
-                <Check className="h-4 w-4" />
+                <Check className="h-4 w-4 mr-1" />
+                {editingActivityId ? "Update" : "Add"}
               </Button>
               <Button 
                 variant="outline" 
@@ -71,7 +167,11 @@ const ActivityTracker = () => {
                   setInputValue("");
                   setIsAdding(false);
                   setEditingActivityId(null);
+                  setSelectedDate(new Date());
+                  setSelectedTime("");
+                  setRepeatFrequency("none");
                 }}
+                className="flex-1"
               >
                 Cancel
               </Button>
@@ -93,6 +193,7 @@ const ActivityTracker = () => {
         </div>
       ) : todaysActivities.length > 0 ? (
         <div className="space-y-2">
+          <h3 className="font-medium text-lg">Today's Activities</h3>
           {todaysActivities.map(activity => (
             <Card key={activity.id} className="overflow-hidden">
               <div 
@@ -140,6 +241,56 @@ const ActivityTracker = () => {
           <p className="text-muted-foreground">No activities added yet</p>
         </div>
       )}
+      
+      <div className="space-y-2 mt-8">
+        <h3 className="font-medium text-lg">Planned Activities</h3>
+        {activities.filter(activity => activity.date > today).length > 0 ? (
+          <div className="space-y-2">
+            {activities
+              .filter(activity => activity.date > today)
+              .sort((a, b) => a.date.localeCompare(b.date))
+              .map(activity => (
+                <Card key={activity.id}>
+                  <CardContent className="pt-3 pb-3 flex items-center justify-between">
+                    <div className="flex items-center flex-1">
+                      <div className="mr-3 text-muted-foreground">
+                        <Calendar className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <p>{activity.description}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {format(new Date(activity.date), "PPP")}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-8 w-8 p-0"
+                        onClick={() => activity.id && startEditActivity(activity.id, activity.description)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-8 w-8 p-0 text-destructive hover:text-destructive/80 hover:bg-destructive/10"
+                        onClick={() => activity.id && deleteActivity(activity.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+          </div>
+        ) : (
+          <div className="text-center py-6">
+            <p className="text-muted-foreground">No planned activities</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
