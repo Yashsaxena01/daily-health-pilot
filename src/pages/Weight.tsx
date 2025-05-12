@@ -12,6 +12,7 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useWeightData } from "@/hooks/useWeightData";
+import { supabase } from "@/integrations/supabase/client";
 
 const Weight = () => {
   const { weightData, addWeightEntry, refreshWeightData } = useWeightData();
@@ -71,9 +72,6 @@ const Weight = () => {
       }
 
       // Update the entry with a direct call to Supabase
-      const { data: supabaseClient } = await import('@/integrations/supabase/client');
-      const { supabase } = supabaseClient;
-      
       const { error } = await supabase
         .from('weight_entries')
         .update({ weight: editingEntry.weight })
@@ -112,9 +110,6 @@ const Weight = () => {
     
     try {
       // Delete the entry with a direct call to Supabase
-      const { data: supabaseClient } = await import('@/integrations/supabase/client');
-      const { supabase } = supabaseClient;
-      
       const { error } = await supabase
         .from('weight_entries')
         .delete()
