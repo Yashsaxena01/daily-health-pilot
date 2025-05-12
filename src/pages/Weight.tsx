@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import PageContainer from "@/components/layout/PageContainer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,99 +9,132 @@ import { toast } from "@/components/ui/use-toast";
 import { format, parse, isValid } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import useLocalStorage from "@/hooks/useLocalStorage";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { useWeightData } from "@/hooks/useWeightData";
 
 const Weight = () => {
+  const { weightData, addWeightEntry, refreshWeightData } = useWeightData();
   const [weight, setWeight] = useState("");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [weightData, setWeightData] = useLocalStorage<Array<{date: string, weight: number}>>("weightData", []);
   const [view, setView] = useState<"daily" | "weekly" | "monthly">("daily");
-  const [editingEntry, setEditingEntry] = useState<{index: number, date: string, weight: number} | null>(null);
+  const [editingEntry, setEditingEntry] = useState<{index: number, id?: string, date: string, weight: number} | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   
-  // Force scroll to top when the component mounts
-  useState(() => {
+  // Refresh data when component mounts
+  useEffect(() => {
+    refreshWeightData();
     window.scrollTo(0, 0);
-  });
+  }, []);
 
   const handleAddWeight = () => {
     if (!weight) return;
     
     const numWeight = parseFloat(weight);
-    if (isNaN(numWeight)) return;
-    
-    const dateStr = selectedDate ? format(selectedDate, "MMM d") : format(new Date(), "MMM d");
-    
-    // Check if we already have an entry for this date
-    const updatedData = [...weightData];
-    const dateIndex = updatedData.findIndex(item => item.date === dateStr);
-    
-    if (dateIndex >= 0) {
-      updatedData[dateIndex] = { date: dateStr, weight: numWeight };
-    } else {
-      updatedData.push({ date: dateStr, weight: numWeight });
+    if (isNaN(numWeight)) {
+      toast({
+        description: "Please enter a valid weight",
+        variant: "destructive",
+      });
+      return;
     }
     
-    // Sort the data by date
-    updatedData.sort((a, b) => {
-      const dateA = parse(a.date, "MMM d", new Date());
-      const dateB = parse(b.date, "MMM d", new Date());
-      return dateA.getTime() - dateB.getTime();
-    });
-    
-    setWeightData(updatedData);
+    addWeightEntry(selectedDate || new Date(), numWeight);
     setWeight("");
-    
-    toast({
-      description: `Weight recorded for ${dateStr}.`,
-    });
   };
 
   const handleEditEntry = (index: number) => {
     const entry = weightData[index];
     setEditingEntry({
       index,
+      id: entry.id,
       date: entry.date,
       weight: entry.weight
     });
     setDialogOpen(true);
   };
 
-  const handleUpdateEntry = () => {
-    if (!editingEntry) return;
+  const handleUpdateEntry = async () => {
+    if (!editingEntry || !editingEntry.id) return;
 
-    const updatedData = [...weightData];
-    updatedData[editingEntry.index] = {
-      date: editingEntry.date,
-      weight: editingEntry.weight
-    };
+    try {
+      // Get the date object from the display string format
+      let dateObj: Date;
+      try {
+        // Try to parse the date display string
+        dateObj = parse(editingEntry.date, "MMM d", new Date());
+        if (!isValid(dateObj)) {
+          dateObj = new Date(); // Fallback to today if parsing fails
+        }
+      } catch (e) {
+        dateObj = new Date(); // Fallback to today if parsing fails
+      }
 
-    // Sort the data by date
-    updatedData.sort((a, b) => {
-      const dateA = parse(a.date, "MMM d", new Date());
-      const dateB = parse(b.date, "MMM d", new Date());
-      return dateA.getTime() - dateB.getTime();
-    });
-    
-    setWeightData(updatedData);
-    setEditingEntry(null);
-    setDialogOpen(false);
-    
-    toast({
-      description: `Weight updated for ${editingEntry.date}.`,
-    });
+      // Update the entry with a direct call to Supabase
+      const { data: supabaseClient } = await import('@/integrations/supabase/client');
+      const { supabase } = supabaseClient;
+      
+      const { error } = await supabase
+        .from('weight_entries')
+        .update({ weight: editingEntry.weight })
+        .eq('id', editingEntry.id);
+        
+      if (error) throw error;
+
+      // Refresh data from the server
+      refreshWeightData();
+      
+      setDialogOpen(false);
+      setEditingEntry(null);
+      
+      toast({
+        description: `Weight updated successfully.`,
+      });
+    } catch (error) {
+      console.error('Error updating weight entry:', error);
+      toast({
+        description: "Failed to update weight entry",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleDeleteEntry = (index: number) => {
-    const updatedData = weightData.filter((_, i) => i !== index);
-    setWeightData(updatedData);
+  const handleDeleteEntry = async (index: number) => {
+    const entry = weightData[index];
     
-    toast({
-      description: "Weight entry deleted.",
-      variant: "destructive"
-    });
+    if (!entry.id) {
+      toast({
+        description: "Cannot delete entry without ID",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
+      // Delete the entry with a direct call to Supabase
+      const { data: supabaseClient } = await import('@/integrations/supabase/client');
+      const { supabase } = supabaseClient;
+      
+      const { error } = await supabase
+        .from('weight_entries')
+        .delete()
+        .eq('id', entry.id);
+        
+      if (error) throw error;
+
+      // Refresh data from the server
+      refreshWeightData();
+      
+      toast({
+        description: "Weight entry deleted.",
+      });
+    } catch (error) {
+      console.error('Error deleting weight entry:', error);
+      toast({
+        description: "Failed to delete weight entry",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -217,7 +249,7 @@ const Weight = () => {
               </TableHeader>
               <TableBody>
                 {weightData.map((entry, index) => (
-                  <TableRow key={index}>
+                  <TableRow key={entry.id || index}>
                     <TableCell>{entry.date}</TableCell>
                     <TableCell>{entry.weight}</TableCell>
                     <TableCell className="text-right">

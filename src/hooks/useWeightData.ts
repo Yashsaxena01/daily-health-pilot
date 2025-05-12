@@ -53,12 +53,12 @@ export const useWeightData = () => {
       const dateStr = date.toISOString().split('T')[0]; // Format as YYYY-MM-DD
       const displayDateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); // Format as MMM d
       
-      // Check if we already have an entry for today
+      // Check if we already have an entry for this date
       const existingEntryIndex = weightData.findIndex(item => 
-        new Date(item.date).toLocaleDateString() === new Date(date).toLocaleDateString()
+        new Date(item.date).toLocaleDateString() === date.toLocaleDateString()
       );
       
-      if (existingEntryIndex >= 0) {
+      if (existingEntryIndex >= 0 && weightData[existingEntryIndex].id) {
         // Update existing entry
         const { error } = await supabase
           .from('weight_entries')
@@ -88,19 +88,32 @@ export const useWeightData = () => {
         if (error) throw error;
         
         // Add to local state
-        setWeightData([
+        const newWeightData = [
           ...weightData,
           { 
             id: data[0].id,
             date: displayDateStr, 
             weight 
           }
-        ]);
+        ];
+        
+        // Sort by date
+        newWeightData.sort((a, b) => {
+          const dateA = new Date(a.date);
+          const dateB = new Date(b.date);
+          return dateA.getTime() - dateB.getTime();
+        });
+        
+        setWeightData(newWeightData);
         
         toast({
           description: "Weight added successfully",
         });
       }
+      
+      // Refresh data from server to ensure consistency
+      await fetchWeightData();
+      
     } catch (error) {
       console.error('Error adding weight entry:', error);
       toast({

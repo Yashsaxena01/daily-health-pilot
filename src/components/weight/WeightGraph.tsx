@@ -1,5 +1,5 @@
 
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, TooltipProps } from "recharts";
 
 interface WeightGraphProps {
   data: {
@@ -60,6 +60,18 @@ const WeightGraph = ({ data, view = "daily" }: WeightGraphProps) => {
     return data;
   })();
 
+  const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-white p-2 border border-gray-200 shadow-sm rounded-md">
+          <p className="font-medium">{label}</p>
+          <p className="text-sm">{`Weight: ${payload[0].value}`}</p>
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
     <ResponsiveContainer width="100%" height="100%">
       <LineChart
@@ -79,13 +91,7 @@ const WeightGraph = ({ data, view = "daily" }: WeightGraphProps) => {
           tickMargin={10}
           axisLine={false}
         />
-        <Tooltip 
-          contentStyle={{ 
-            backgroundColor: "white", 
-            borderColor: "#e5e5e5",
-            borderRadius: "8px"
-          }}
-        />
+        <Tooltip content={<CustomTooltip />} />
         <Line
           type="monotone"
           dataKey="weight"

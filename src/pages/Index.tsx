@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,20 +18,34 @@ import { useFoodSummary } from "@/hooks/useFoodSummary";
 import { useEliminationDiet } from "@/hooks/useEliminationDiet";
 
 const Index = () => {
-  const { weightData, addWeightEntry } = useWeightData();
-  const { scheduleItems, getTodaysItems } = useScheduleItems();
-  const { mealPlans } = useMealPlans();
-  const { summaryData: foodSummaryData } = useFoodSummary();
+  const { weightData, addWeightEntry, refreshWeightData } = useWeightData();
+  const { scheduleItems, getTodaysItems, refreshScheduleItems } = useScheduleItems();
+  const { mealPlans, refreshMealPlans } = useMealPlans();
+  const { summaryData: foodSummaryData, refreshFoodSummary } = useFoodSummary();
   const { categories: eliminationDietCategories } = useEliminationDiet();
   
   const [weight, setWeight] = useState("");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
 
+  // Ensure we're refreshing data from server on page load
+  useEffect(() => {
+    refreshWeightData();
+    refreshScheduleItems();
+    refreshMealPlans();
+    refreshFoodSummary();
+  }, []);
+  
   const handleAddWeight = () => {
     if (!weight) return;
     
     const numWeight = parseFloat(weight);
-    if (isNaN(numWeight)) return;
+    if (isNaN(numWeight)) {
+      toast({
+        description: "Please enter a valid weight",
+        variant: "destructive",
+      });
+      return;
+    }
     
     addWeightEntry(selectedDate || new Date(), numWeight);
     setWeight("");
