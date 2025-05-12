@@ -413,7 +413,7 @@ export const useEliminationDiet = () => {
       const dbUpdates: any = {
         name: updates.name,
         introduced: updates.introduced,
-        introduction_date: updates.introduced && !updates.introduction_date 
+        introduction_date: updates.introduced && !updates.introduced_date 
           ? new Date().toISOString().split('T')[0]
           : updates.introduction_date,
         reaction: updates.reaction,
@@ -627,6 +627,7 @@ export const useEliminationDiet = () => {
   const getTodaysFood = () => {
     const today = new Date().toISOString().split('T')[0];
     
+    // First pass: check for exact match on today's date
     for (const category of categories) {
       for (const food of category.foods) {
         if (!food.introduced && food.scheduled_date === today) {
@@ -638,23 +639,27 @@ export const useEliminationDiet = () => {
       }
     }
     
-    // If no food is scheduled exactly for today, get the next one
-    const nextFood = categories
-      .flatMap(cat => 
-        cat.foods.map(food => ({ 
-          food, 
-          category: cat,
-          date: food.scheduled_date || '9999-12-31' // Default to far future if no date
-        }))
-      )
-      .filter(item => !item.food.introduced && item.date >= today)
-      .sort((a, b) => a.date.localeCompare(b.date))[0];
-    
-    if (nextFood) {
-      return {
-        food: nextFood.food,
-        category: nextFood.category
-      };
+    // Second pass: if no food is scheduled exactly for today, get the next one
+    if (categories.length > 0) {
+      const allNonIntroducedFoods = categories
+        .flatMap(cat => 
+          cat.foods
+            .filter(food => !food.introduced) // Only non-introduced foods
+            .map(food => ({ 
+              food, 
+              category: cat,
+              date: food.scheduled_date || '9999-12-31' // Default to far future if no date
+            }))
+        )
+        .sort((a, b) => a.date.localeCompare(b.date));
+      
+      if (allNonIntroducedFoods.length > 0) {
+        const nextFood = allNonIntroducedFoods[0];
+        return {
+          food: nextFood.food,
+          category: nextFood.category
+        };
+      }
     }
     
     return null;

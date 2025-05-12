@@ -12,21 +12,32 @@ import { Button } from "@/components/ui/button";
 
 const Food = () => {
   const [activeTab, setActiveTab] = useState("summary");
-  const { getTodaysFood, refreshEliminationDiet } = useEliminationDiet();
+  const { getTodaysFood, refreshEliminationDiet, categories, loading } = useEliminationDiet();
+  const [todayRecommendation, setTodayRecommendation] = useState<any | null>(null);
 
   // Force scroll to top when the component mounts
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
 
-  // Refresh data when tab changes to elimination
+  // Refresh data when tab changes to elimination or when the component mounts
   useEffect(() => {
-    if (activeTab === "elimination") {
-      refreshEliminationDiet();
-    }
-  }, [activeTab, refreshEliminationDiet]);
+    const fetchData = async () => {
+      await refreshEliminationDiet();
+      const todayFood = getTodaysFood();
+      setTodayRecommendation(todayFood);
+    };
+    
+    fetchData();
+  }, [activeTab, refreshEliminationDiet, getTodaysFood]);
 
-  const todayRecommendation = getTodaysFood();
+  // Update today's recommendation whenever categories change
+  useEffect(() => {
+    if (!loading) {
+      const todayFood = getTodaysFood();
+      setTodayRecommendation(todayFood);
+    }
+  }, [categories, loading, getTodaysFood]);
 
   return (
     <PageContainer>
