@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from "@/components/ui/use-toast";
@@ -40,9 +39,9 @@ export const useActivityData = () => {
     }
   };
 
-  const addActivity = async (description: string) => {
+  const addActivity = async (description: string, date?: string) => {
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = date || new Date().toISOString().split('T')[0];
       
       const { data, error } = await supabase
         .from('activities')
