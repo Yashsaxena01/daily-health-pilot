@@ -10,8 +10,8 @@ export interface Food {
   introduction_date?: string;
   reaction?: string;
   reaction_level?: 'none' | 'mild' | 'severe';
-  scheduled_date?: string;  // New field for scheduled introduction
-  order?: number;          // New field for ordering
+  scheduled_date?: string;  // Now supported by the database
+  order?: number;          // Now supported by the database
 }
 
 export interface FoodCategory {
@@ -19,7 +19,7 @@ export interface FoodCategory {
   name: string;
   expanded: boolean;
   foods: Food[];
-  order?: number;         // New field for category ordering
+  order?: number;         // Now supported by the database
 }
 
 export const useEliminationDiet = () => {

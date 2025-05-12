@@ -113,6 +113,18 @@ export const useScheduleItems = () => {
     }
   };
 
+  // Add getTodaysItems function to fix the error
+  const getTodaysItems = () => {
+    const today = new Date().toISOString().split('T')[0];
+    return scheduleItems
+      .filter(item => item.date === today)
+      .sort((a, b) => {
+        if (!a.time) return 1;
+        if (!b.time) return -1;
+        return a.time.localeCompare(b.time);
+      });
+  };
+
   const getItemsByDateRange = (startDate: string, endDate: string) => {
     return scheduleItems
       .filter(item => item.date >= startDate && item.date <= endDate)
@@ -142,6 +154,7 @@ export const useScheduleItems = () => {
     updateScheduleItem,
     deleteScheduleItem,
     getItemsByDateRange,
+    getTodaysItems,
     refreshScheduleItems: fetchScheduleItems
   };
 };

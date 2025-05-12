@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, AlertCircle, BarChart, Utensils } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useEliminationDiet } from "@/hooks/useEliminationDiet";
+import { Button } from "@/components/ui/button";
 
 const Food = () => {
   const [activeTab, setActiveTab] = useState("summary");

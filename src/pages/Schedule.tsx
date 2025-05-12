@@ -5,7 +5,6 @@ import ActivityTracker from "@/components/activity/ActivityTracker";
 import WorkoutCalendar from "@/components/activity/WorkoutCalendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Activity, Calendar } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useActivityData } from "@/hooks/useActivityData";
 import { toast } from "@/components/ui/use-toast";
 import { format } from "date-fns";
