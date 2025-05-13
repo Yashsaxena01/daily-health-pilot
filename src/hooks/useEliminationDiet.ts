@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from "@/components/ui/use-toast";
@@ -413,7 +414,7 @@ export const useEliminationDiet = () => {
       const dbUpdates: any = {
         name: updates.name,
         introduced: updates.introduced,
-        introduction_date: updates.introduced && !updates.introduced_date 
+        introduction_date: updates.introduced && !updates.introduction_date 
           ? new Date().toISOString().split('T')[0]
           : updates.introduction_date,
         reaction: updates.reaction,
