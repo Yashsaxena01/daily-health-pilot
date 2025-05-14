@@ -1,12 +1,12 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Check, Edit, Plus, Trash2, Clock, Calendar } from "lucide-react";
 import { useActivityData } from "@/hooks/useActivityData";
 import { Skeleton } from "@/components/ui/skeleton";
-import { format, addDays, addWeeks, addMonths, parse } from "date-fns";
+import { format, parse } from "date-fns";
 import { useScheduleItems } from "@/hooks/useScheduleItems";
 import { 
   Select, 
@@ -22,9 +22,10 @@ import {
 } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
+import { toast } from "@/components/ui/use-toast";
 
 const ActivityTracker = () => {
-  const { activities, loading, addActivity, updateActivity, toggleActivityCompleted, deleteActivity } = useActivityData();
+  const { activities, loading, addActivity, updateActivity, toggleActivityCompleted, deleteActivity, refreshActivities } = useActivityData();
   const { addScheduleItem } = useScheduleItems();
   
   const [isAdding, setIsAdding] = useState(false);
@@ -39,33 +40,57 @@ const ActivityTracker = () => {
     
     const formattedDate = format(selectedDate, "yyyy-MM-dd");
     
-    // Add activity to activities table - fix argument count here
-    await addActivity(inputValue.trim(), formattedDate);
-    
-    // If time or repeat is selected, also add to schedule_items
-    if (selectedTime || repeatFrequency !== "none") {
-      await addScheduleItem({
-        title: inputValue.trim(),
-        description: `Activity scheduled for ${format(selectedDate, "PPP")}${selectedTime ? ` at ${selectedTime}` : ''}`,
-        time: selectedTime,
-        date: formattedDate,
-        completed: false,
-        repeatFrequency
+    try {
+      // Add to activities table
+      const newActivity = await addActivity(inputValue.trim(), formattedDate);
+      console.log("New activity added:", newActivity);
+      
+      // If time or repeat is selected, also add to schedule_items
+      if (selectedTime || repeatFrequency !== "none") {
+        const scheduleItem = await addScheduleItem({
+          title: inputValue.trim(),
+          description: `Activity scheduled for ${format(selectedDate, "PPP")}${selectedTime ? ` at ${selectedTime}` : ''}`,
+          time: selectedTime,
+          date: formattedDate,
+          completed: false,
+          repeatFrequency: repeatFrequency === "none" ? undefined : repeatFrequency
+        });
+        
+        console.log("Added schedule item:", scheduleItem);
+      }
+      
+      // Reset form
+      setInputValue("");
+      setSelectedTime("");
+      setRepeatFrequency("none");
+      setIsAdding(false);
+      
+      // Refresh activities list
+      await refreshActivities();
+      
+      toast({
+        description: "Activity added successfully",
+      });
+    } catch (error) {
+      console.error("Error in handleAddActivity:", error);
+      toast({
+        description: "Failed to add activity",
+        variant: "destructive",
       });
     }
-    
-    setInputValue("");
-    setSelectedTime("");
-    setRepeatFrequency("none");
-    setIsAdding(false);
   };
   
   const handleUpdateActivity = async () => {
     if (!inputValue.trim() || !editingActivityId) return;
     
-    await updateActivity(editingActivityId, inputValue.trim());
-    setInputValue("");
-    setEditingActivityId(null);
+    try {
+      await updateActivity(editingActivityId, inputValue.trim());
+      setInputValue("");
+      setEditingActivityId(null);
+      await refreshActivities();
+    } catch (error) {
+      console.error("Error updating activity:", error);
+    }
   };
   
   const startEditActivity = (id: string, description: string) => {

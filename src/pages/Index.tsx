@@ -1,9 +1,10 @@
+
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import PageContainer from "@/components/layout/PageContainer";
-import { ArrowRight, Activity, Weight, Utensils, Calendar, Plus, Check } from "lucide-react";
+import { ArrowRight, Activity, Weight, Calendar, Plus, Check } from "lucide-react";
 import WeightGraph from "@/components/weight/WeightGraph";
 import { format } from "date-fns";
 import { Input } from "@/components/ui/input";
@@ -12,16 +13,12 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { useWeightData } from "@/hooks/useWeightData";
 import { useScheduleItems } from "@/hooks/useScheduleItems";
-import { useMealPlans } from "@/hooks/useMealPlans";
 import { useFoodSummary } from "@/hooks/useFoodSummary";
-import { useEliminationDiet } from "@/hooks/useEliminationDiet";
 
 const Index = () => {
   const { weightData, addWeightEntry, refreshWeightData } = useWeightData();
   const { scheduleItems, getTodaysItems, refreshScheduleItems } = useScheduleItems();
-  const { mealPlans, refreshMealPlans } = useMealPlans();
   const { summaryData: foodSummaryData, refreshFoodSummary } = useFoodSummary();
-  const { categories: eliminationDietCategories } = useEliminationDiet();
   
   const [weight, setWeight] = useState("");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
@@ -30,7 +27,6 @@ const Index = () => {
   useEffect(() => {
     refreshWeightData();
     refreshScheduleItems();
-    refreshMealPlans();
     refreshFoodSummary();
   }, []);
   
@@ -51,13 +47,8 @@ const Index = () => {
   };
 
   // Get today's schedule items
-  const todaysSchedule = getTodaysItems().slice(0, 3);
+  const todaysSchedule = getTodaysItems();
   
-  // Get today's meal plan
-  const today = format(new Date(), "yyyy-MM-dd");
-  const todayMealPlan = mealPlans.find(plan => plan.date === today);
-  const upcomingMeals = todayMealPlan?.meals?.filter(meal => !meal.completed).slice(0, 2) || [];
-
   return (
     <PageContainer>
       <div className="mb-8">
@@ -132,8 +123,7 @@ const Index = () => {
         <Card className="border-accent/20">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-xl font-medium flex items-center">
-              <Utensils className="mr-2 h-5 w-5" />
-              Food Tracking
+              Food Introduction
             </CardTitle>
             <Link to="/food">
               <Button variant="ghost" size="sm" className="gap-1">
@@ -142,47 +132,25 @@ const Index = () => {
             </Link>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-secondary p-4 rounded-lg">
-                <h3 className="font-medium mb-2">Food to Introduce Today</h3>
-                {foodSummaryData.todaysFood ? (
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="text-sm">{foodSummaryData.todaysFood.name}</p>
-                      <p className="text-xs text-muted-foreground">{foodSummaryData.todaysFood.category}</p>
-                    </div>
-                    <Link to="/food">
-                      <Button variant="outline" size="sm" className="h-8 w-8 p-0">
-                        <Check className="h-4 w-4" />
-                      </Button>
-                    </Link>
+            <div className="bg-secondary p-4 rounded-lg">
+              <h3 className="font-medium mb-2">Food to Introduce Today</h3>
+              {foodSummaryData.todaysFood ? (
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-sm">{foodSummaryData.todaysFood.name}</p>
+                    <p className="text-xs text-muted-foreground">{foodSummaryData.todaysFood.category}</p>
                   </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    No food scheduled for introduction today. Start your elimination diet in the Food section.
-                  </p>
-                )}
-              </div>
-              
-              <div className="bg-secondary p-4 rounded-lg">
-                <h3 className="font-medium mb-2">Upcoming Meals</h3>
-                {upcomingMeals.length > 0 ? (
-                  <div className="space-y-2">
-                    {upcomingMeals.map((meal, idx) => (
-                      <div key={idx} className="text-sm">
-                        <p className="font-medium capitalize">{meal.title} ({meal.time})</p>
-                        {meal.description && (
-                          <p className="text-xs text-muted-foreground">{meal.description}</p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    No upcoming meals planned. Create your meal plan in the Food section.
-                  </p>
-                )}
-              </div>
+                  <Link to="/food">
+                    <Button variant="outline" size="sm" className="h-8 w-8 p-0">
+                      <Check className="h-4 w-4" />
+                    </Button>
+                  </Link>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No food scheduled for introduction today. Start your elimination diet in the Food section.
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -191,7 +159,7 @@ const Index = () => {
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-xl font-medium flex items-center">
               <Activity className="mr-2 h-5 w-5" />
-              Activity & Exercise
+              Today's Activities
             </CardTitle>
             <Link to="/schedule">
               <Button variant="ghost" size="sm" className="gap-1">
@@ -207,52 +175,18 @@ const Index = () => {
                   {todaysSchedule.map((item, idx) => (
                     <div key={idx} className="flex items-center gap-2">
                       <div className="h-2 w-2 rounded-full bg-primary"></div>
-                      <p className="text-sm flex-1">{item.title} <span className="text-xs text-muted-foreground">({item.time})</span></p>
+                      <p className="text-sm flex-1">
+                        {item.title} 
+                        <span className="text-xs text-muted-foreground">
+                          {item.time ? ` (${item.time})` : ''}
+                        </span>
+                      </p>
                     </div>
                   ))}
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">
                   No activities scheduled for today. Add some in the Schedule section.
-                </p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-accent/20">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-xl font-medium flex items-center">
-              <Calendar className="mr-2 h-5 w-5" />
-              Daily Schedule
-            </CardTitle>
-            <Link to="/schedule">
-              <Button variant="ghost" size="sm" className="gap-1">
-                Go to page <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
-          </CardHeader>
-          <CardContent>
-            <div className="bg-secondary p-4 rounded-lg">
-              <h3 className="font-medium mb-2">Today's Schedule</h3>
-              {todaysSchedule.length > 0 ? (
-                <div className="space-y-1">
-                  {todaysSchedule.map((item, idx) => (
-                    <div key={idx} className="flex items-start gap-2">
-                      <div className="h-2 w-2 rounded-full bg-primary mt-1.5"></div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium">{item.title}</p>
-                        {item.description && (
-                          <p className="text-xs text-muted-foreground">{item.description}</p>
-                        )}
-                      </div>
-                      <p className="text-xs whitespace-nowrap text-muted-foreground">{item.time}</p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  No schedule items for today. Add some in the Schedule section.
                 </p>
               )}
             </div>
