@@ -12,7 +12,14 @@ import Schedule from "./pages/Schedule";
 import NotFound from "./pages/NotFound";
 import Index from "./pages/Index";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1, // Reduce retry attempts for better error reporting
+      refetchOnWindowFocus: false // Disable automatic refetching on window focus
+    }
+  }
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>

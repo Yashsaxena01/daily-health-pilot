@@ -46,15 +46,26 @@ export const useScheduleItems = () => {
 
   const addScheduleItem = async (item: Omit<ScheduleItem, 'id'>) => {
     try {
+      console.log("Adding schedule item:", item); // Debug log
+      
       const { data, error } = await supabase
         .from('schedule_items')
         .insert(item)
         .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Supabase error:", error); // Debug log
+        throw error;
+      }
       
       if (data && data[0]) {
-        setScheduleItems(prev => [...prev, data[0]]);
+        console.log("Successfully added item:", data[0]); // Debug log
+        setScheduleItems(prev => [data[0], ...prev]);
+        
+        toast({
+          description: "Activity added successfully",
+        });
+        
         return data[0];
       }
     } catch (error) {
@@ -113,7 +124,6 @@ export const useScheduleItems = () => {
     }
   };
 
-  // Add getTodaysItems function to fix the error
   const getTodaysItems = () => {
     const today = new Date().toISOString().split('T')[0];
     return scheduleItems

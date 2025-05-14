@@ -8,10 +8,12 @@ import { Activity, Calendar } from "lucide-react";
 import { useActivityData } from "@/hooks/useActivityData";
 import { toast } from "@/components/ui/use-toast";
 import { format } from "date-fns";
+import { useScheduleItems } from "@/hooks/useScheduleItems";
 
 const Schedule = () => {
   // Get data from hooks to ensure they're fresh when switching tabs
   const { refreshActivities } = useActivityData();
+  const { refreshScheduleItems } = useScheduleItems();
   
   // Tab state
   const [activeTab, setActiveTab] = useState("activities");
@@ -30,12 +32,19 @@ const Schedule = () => {
     });
   }, []);
   
-  // Refresh data when tab changes
+  // Refresh data when tab changes or component mounts
   useEffect(() => {
-    if (activeTab === "activities") {
-      refreshActivities();
-    }
-  }, [activeTab, refreshActivities]);
+    const refreshData = async () => {
+      if (activeTab === "activities") {
+        await refreshActivities();
+        await refreshScheduleItems();
+      } else {
+        await refreshActivities();
+      }
+    };
+    
+    refreshData();
+  }, [activeTab, refreshActivities, refreshScheduleItems]);
 
   return (
     <PageContainer>
