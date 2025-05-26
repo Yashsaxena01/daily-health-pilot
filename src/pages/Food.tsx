@@ -2,41 +2,17 @@
 import { useState, useEffect } from "react";
 import PageContainer from "@/components/layout/PageContainer";
 import EliminationDiet from "@/components/food/EliminationDiet";
-import FoodSummary from "@/components/food/FoodSummary";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, BarChart, Calendar } from "lucide-react";
+import { AlertCircle, Calendar } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useEliminationDiet } from "@/hooks/useEliminationDiet";
-import { Button } from "@/components/ui/button";
 
 const Food = () => {
-  const [activeTab, setActiveTab] = useState("summary");
-  const { getTodaysFood, refreshEliminationDiet, categories, loading } = useEliminationDiet();
-  const [todayRecommendation, setTodayRecommendation] = useState<any | null>(null);
+  const [activeTab, setActiveTab] = useState("elimination");
 
   // Force scroll to top when the component mounts
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
-
-  // Refresh data when tab changes to elimination or when the component mounts
-  useEffect(() => {
-    const fetchData = async () => {
-      await refreshEliminationDiet();
-      const todayFood = getTodaysFood();
-      setTodayRecommendation(todayFood);
-    };
-    
-    fetchData();
-  }, [activeTab, refreshEliminationDiet, getTodaysFood]);
-
-  // Update today's recommendation whenever categories change
-  useEffect(() => {
-    if (!loading) {
-      const todayFood = getTodaysFood();
-      setTodayRecommendation(todayFood);
-    }
-  }, [categories, loading, getTodaysFood]);
 
   return (
     <PageContainer>
@@ -70,58 +46,9 @@ const Food = () => {
         </CardContent>
       </Card>
 
-      {todayRecommendation && (
-        <Card className="mb-6 border-primary/20">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-medium flex items-center">
-              Today's Food Introduction
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="font-medium">{todayRecommendation.food.name}</p>
-                <p className="text-sm text-muted-foreground">
-                  From category: {todayRecommendation.category.name}
-                </p>
-              </div>
-              <Button 
-                onClick={() => setActiveTab("elimination")}
-                variant="outline"
-                className="text-sm"
-              >
-                Go to Elimination Diet
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      <Tabs 
-        defaultValue="summary" 
-        value={activeTab} 
-        onValueChange={setActiveTab}
-        className="pb-20"
-      >
-        <TabsList className="grid w-full grid-cols-2 mb-4">
-          <TabsTrigger value="summary" className="flex items-center gap-2">
-            <BarChart className="h-4 w-4" />
-            Summary
-          </TabsTrigger>
-          <TabsTrigger value="elimination" className="flex items-center gap-2">
-            <Calendar className="h-4 w-4" />
-            Elimination Diet
-          </TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="summary">
-          <FoodSummary />
-        </TabsContent>
-        
-        <TabsContent value="elimination">
-          <EliminationDiet colorCoding={true} />
-        </TabsContent>
-      </Tabs>
+      <div className="pb-20">
+        <EliminationDiet colorCoding={true} />
+      </div>
     </PageContainer>
   );
 };

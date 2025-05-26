@@ -63,6 +63,15 @@ export default {
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
 				},
+				// Slytherin house colors
+				slytherin: {
+					green: '#1e3a1e',
+					'green-light': '#2d5a2d',
+					'green-dark': '#0f1a0f',
+					silver: '#c0c0c0',
+					'silver-dark': '#a0a0a0',
+					black: '#0a0a0a',
+				},
 				// Health app specific colors
 				teal: {
 					light: '#4ECDC4',

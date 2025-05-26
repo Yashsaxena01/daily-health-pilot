@@ -1,4 +1,3 @@
-
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Check, ChevronDown, ChevronUp, Plus, Trash, Edit, X, GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@/hooks/use-toast";
 import { useEliminationDiet } from "@/hooks/useEliminationDiet";
 import { format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -50,73 +49,124 @@ const EliminationDiet = ({ colorCoding = false }: EliminationDietProps) => {
   const [draggedItem, setDraggedItem] = useState<{type: 'category' | 'food', id: string, categoryId?: string} | null>(null);
   const dragOverItemRef = useRef<{type: 'category' | 'food', id: string, categoryId?: string} | null>(null);
   
-  // Get today's recommended food to introduce
-  const todayRecommendation = getTodaysFood();
-  
   const handleAddCategory = async () => {
-    if (!newCategoryName) return;
+    if (!newCategoryName.trim()) return;
     
-    await addCategory(newCategoryName);
-    setNewCategoryName("");
-    setIsAddingCategory(false);
+    console.log("Adding category:", newCategoryName);
+    const success = await addCategory(newCategoryName.trim());
+    if (success) {
+      setNewCategoryName("");
+      setIsAddingCategory(false);
+      toast({
+        description: "Category added successfully",
+      });
+    }
   };
 
-  const handleEditCategory = (categoryId: string) => {
-    if (!editingCategoryName) return;
+  const handleEditCategory = async (categoryId: string) => {
+    if (!editingCategoryName.trim()) return;
     
-    updateCategory(categoryId, editingCategoryName);
-    setEditingCategoryId(null);
-    setEditingCategoryName("");
+    console.log("Updating category:", { categoryId, name: editingCategoryName });
+    const success = await updateCategory(categoryId, editingCategoryName.trim());
+    if (success) {
+      setEditingCategoryId(null);
+      setEditingCategoryName("");
+      toast({
+        description: "Category updated successfully",
+      });
+    }
   };
   
-  const handleDeleteCategory = (categoryId: string) => {
-    deleteCategory(categoryId);
+  const handleDeleteCategory = async (categoryId: string) => {
+    console.log("Deleting category:", categoryId);
+    const success = await deleteCategory(categoryId);
+    if (success) {
+      toast({
+        description: "Category deleted successfully",
+      });
+    }
   };
   
-  const handleAddFood = (categoryId: string) => {
-    if (!newFoodName) return;
+  const handleAddFood = async (categoryId: string) => {
+    if (!newFoodName.trim()) return;
     
-    addFood(categoryId, newFoodName);
-    setNewFoodName("");
-    setIsAddingFood(null);
+    console.log("Adding food:", { categoryId, name: newFoodName });
+    const success = await addFood(categoryId, newFoodName.trim());
+    if (success) {
+      setNewFoodName("");
+      setIsAddingFood(null);
+      toast({
+        description: "Food item added successfully",
+      });
+    }
   };
   
-  const handleEditFood = (categoryId: string, foodId: string) => {
-    if (!editingFoodName) return;
+  const handleEditFood = async (categoryId: string, foodId: string) => {
+    if (!editingFoodName.trim()) return;
     
-    updateFood(categoryId, foodId, { name: editingFoodName });
-    setEditingFoodId(null);
-    setEditingFoodName("");
+    console.log("Updating food:", { categoryId, foodId, name: editingFoodName });
+    const success = await updateFood(categoryId, foodId, { name: editingFoodName.trim() });
+    if (success) {
+      setEditingFoodId(null);
+      setEditingFoodName("");
+      toast({
+        description: "Food item updated successfully",
+      });
+    }
   };
   
-  const handleDeleteFood = (categoryId: string, foodId: string) => {
-    deleteFood(categoryId, foodId);
+  const handleDeleteFood = async (categoryId: string, foodId: string) => {
+    console.log("Deleting food:", { categoryId, foodId });
+    const success = await deleteFood(categoryId, foodId);
+    if (success) {
+      toast({
+        description: "Food item deleted successfully",
+      });
+    }
   };
   
   const handleToggleFood = (categoryId: string, foodId: string, food: any) => {
-    // Find the food
+    console.log("Toggling food:", { categoryId, foodId, introduced: food.introduced });
+    
     if (food.introduced) {
-      // If already introduced, just toggle it off
-      updateFood(categoryId, foodId, { introduced: false, reaction: undefined, introduction_date: undefined, reaction_level: undefined });
+      // If already introduced, toggle it off
+      updateFood(categoryId, foodId, { 
+        introduced: false, 
+        reaction: undefined, 
+        introduction_date: undefined, 
+        reaction_level: undefined 
+      });
     } else {
       // If not introduced, show reaction form
       setSelectedFood({...food, categoryId, foodId});
     }
   };
   
-  const handleSaveReaction = () => {
+  const handleSaveReaction = async () => {
     if (!selectedFood) return;
     
-    markFoodIntroduced(
+    console.log("Saving reaction:", {
+      categoryId: selectedFood.categoryId,
+      foodId: selectedFood.foodId,
+      reactionLevel,
+      reaction: reactionText
+    });
+    
+    const success = await markFoodIntroduced(
       selectedFood.categoryId, 
       selectedFood.foodId, 
       reactionLevel, 
       reactionText || "No specific reaction noted."
     );
     
-    setSelectedFood(null);
-    setReactionText("");
-    setReactionLevel("none");
+    if (success) {
+      setSelectedFood(null);
+      setReactionText("");
+      setReactionLevel("none");
+      toast({
+        description: "Food reaction recorded successfully",
+      });
+    }
   };
 
   const getReactionColor = (reactionLevel?: string) => {
@@ -151,15 +201,12 @@ const EliminationDiet = ({ colorCoding = false }: EliminationDietProps) => {
     const draggedType = draggedItem.type;
     const dragOverType = dragOverItemRef.current.type;
     
-    // Can't drop a category inside a food
     if (draggedType === 'category' && dragOverType === 'food') return;
     
-    // Can't drop a food from one category to another (for simplicity)
     if (draggedType === 'food' && dragOverType === 'food' &&
         draggedItem.categoryId !== dragOverItemRef.current.categoryId) return;
     
     if (draggedType === 'category' && dragOverType === 'category') {
-      // Reordering categories
       const categoryIds = categories.map(cat => cat.id!);
       const fromIndex = categoryIds.indexOf(draggedItem.id);
       const toIndex = categoryIds.indexOf(dragOverItemRef.current.id);
@@ -173,7 +220,6 @@ const EliminationDiet = ({ colorCoding = false }: EliminationDietProps) => {
       }
     } else if (draggedType === 'food' && dragOverType === 'food' && 
                draggedItem.categoryId === dragOverItemRef.current.categoryId) {
-      // Reordering foods within the same category
       const categoryId = draggedItem.categoryId!;
       const category = categories.find(c => c.id === categoryId);
       
@@ -208,39 +254,6 @@ const EliminationDiet = ({ colorCoding = false }: EliminationDietProps) => {
 
   return (
     <div className="space-y-6">
-      {todayRecommendation && (
-        <Card className="border-accent/30">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Today's Food to Introduce</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex justify-between items-center">
-              <div>
-                <h3 className="font-medium">{todayRecommendation.food.name}</h3>
-                <p className="text-sm text-muted-foreground">From category: {todayRecommendation.category.name}</p>
-                {todayRecommendation.food.scheduled_date && (
-                  <p className="text-xs text-muted-foreground">
-                    Scheduled for: {format(new Date(todayRecommendation.food.scheduled_date), "PPP")}
-                  </p>
-                )}
-              </div>
-              <Button 
-                onClick={() => handleToggleFood(
-                  todayRecommendation.category.id!, 
-                  todayRecommendation.food.id!, 
-                  todayRecommendation.food
-                )}
-                variant="outline"
-                className="gap-2"
-              >
-                <Plus className="h-4 w-4" />
-                Introduce Today
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-      
       {!isAddingCategory && (
         <Button onClick={() => setIsAddingCategory(true)} variant="outline" className="w-full">
           <Plus className="h-4 w-4 mr-1" />
@@ -258,6 +271,11 @@ const EliminationDiet = ({ colorCoding = false }: EliminationDietProps) => {
               className="mt-2"
               value={newCategoryName}
               onChange={e => setNewCategoryName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleAddCategory();
+                }
+              }}
             />
             <div className="flex gap-2 mt-4">
               <Button
@@ -272,7 +290,7 @@ const EliminationDiet = ({ colorCoding = false }: EliminationDietProps) => {
               </Button>
               <Button
                 onClick={handleAddCategory}
-                disabled={!newCategoryName}
+                disabled={!newCategoryName.trim()}
                 className="flex-1"
               >
                 Add Category
@@ -330,7 +348,11 @@ const EliminationDiet = ({ colorCoding = false }: EliminationDietProps) => {
             <div className="flex gap-2">
               <Button
                 variant="outline"
-                onClick={() => setSelectedFood(null)}
+                onClick={() => {
+                  setSelectedFood(null);
+                  setReactionText("");
+                  setReactionLevel("none");
+                }}
                 className="flex-1"
               >
                 Cancel
@@ -348,9 +370,11 @@ const EliminationDiet = ({ colorCoding = false }: EliminationDietProps) => {
       )}
       
       <div className="space-y-3">
-        <p className="text-sm text-muted-foreground mb-1">
-          Drag and drop categories and food items to change their order
-        </p>
+        {categories.length === 0 && !loading && (
+          <div className="text-center py-8 text-muted-foreground">
+            <p>No food categories yet. Add your first category to get started!</p>
+          </div>
+        )}
         
         {categories.map(category => (
           <div 
@@ -378,6 +402,15 @@ const EliminationDiet = ({ colorCoding = false }: EliminationDietProps) => {
                     onChange={e => setEditingCategoryName(e.target.value)}
                     className="max-w-[60%]"
                     autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleEditCategory(category.id!);
+                      }
+                      if (e.key === 'Escape') {
+                        setEditingCategoryId(null);
+                        setEditingCategoryName("");
+                      }
+                    }}
                   />
                 ) : (
                   <h3 className="font-medium">{category.name}</h3>
@@ -454,7 +487,7 @@ const EliminationDiet = ({ colorCoding = false }: EliminationDietProps) => {
             </div>
             
             {isAddingFood === category.id && (
-              <Card className="mt-2">
+              <Card className="mt-2 mx-2 mb-2">
                 <CardContent className="pt-6">
                   <Label htmlFor="food-name">Food Name</Label>
                   <Input
@@ -463,6 +496,16 @@ const EliminationDiet = ({ colorCoding = false }: EliminationDietProps) => {
                     className="mt-2"
                     value={newFoodName}
                     onChange={e => setNewFoodName(e.target.value)}
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleAddFood(category.id!);
+                      }
+                      if (e.key === 'Escape') {
+                        setNewFoodName("");
+                        setIsAddingFood(null);
+                      }
+                    }}
                   />
                   <div className="flex gap-2 mt-4">
                     <Button
@@ -477,7 +520,7 @@ const EliminationDiet = ({ colorCoding = false }: EliminationDietProps) => {
                     </Button>
                     <Button
                       onClick={() => handleAddFood(category.id!)}
-                      disabled={!newFoodName}
+                      disabled={!newFoodName.trim()}
                       className="flex-1"
                     >
                       Add Food
@@ -515,6 +558,15 @@ const EliminationDiet = ({ colorCoding = false }: EliminationDietProps) => {
                               onChange={e => setEditingFoodName(e.target.value)}
                               className="max-w-[60%]"
                               autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  handleEditFood(category.id!, food.id!);
+                                }
+                                if (e.key === 'Escape') {
+                                  setEditingFoodId(null);
+                                  setEditingFoodName("");
+                                }
+                              }}
                             />
                             <Button
                               variant="outline"
@@ -541,10 +593,10 @@ const EliminationDiet = ({ colorCoding = false }: EliminationDietProps) => {
                             </div>
                             <div
                               className={cn(
-                                "h-5 w-5 rounded-full border flex items-center justify-center mr-2 cursor-pointer",
+                                "h-5 w-5 rounded-full border flex items-center justify-center mr-2 cursor-pointer transition-colors",
                                 food.introduced
                                   ? "border-muted-foreground text-white"
-                                  : "border-muted-foreground",
+                                  : "border-muted-foreground hover:border-primary",
                                 getReactionColor(food.reaction_level)
                               )}
                               onClick={() => food.id && handleToggleFood(category.id!, food.id, food)}

@@ -54,31 +54,29 @@ const ActivityTracker = () => {
       const newActivity = await addActivity(inputValue.trim(), formattedDate);
       
       if (newActivity) {
-        // If time or repeat is selected, also add to schedule_items
-        if (selectedTime || repeatFrequency !== "none") {
-          const scheduleItem = await addScheduleItem({
-            title: inputValue.trim(),
-            description: `Activity scheduled for ${format(selectedDate, "PPP")}${selectedTime ? ` at ${selectedTime}` : ''}`,
-            time: selectedTime,
-            date: formattedDate,
-            completed: false,
-            repeatFrequency: repeatFrequency === "none" ? undefined : repeatFrequency
-          });
-          
-          console.log("Added schedule item:", scheduleItem);
-          
-          // Refresh schedule items to show the new item
-          await refreshScheduleItems();
-        }
+        console.log("Activity added successfully:", newActivity);
+        
+        // Always add to schedule_items for better tracking
+        const scheduleItem = await addScheduleItem({
+          title: inputValue.trim(),
+          description: `Activity for ${format(selectedDate, "PPP")}${selectedTime ? ` at ${selectedTime}` : ''}`,
+          time: selectedTime || undefined,
+          date: formattedDate,
+          completed: false,
+          repeatFrequency: repeatFrequency === "none" ? undefined : repeatFrequency
+        });
+        
+        console.log("Schedule item added:", scheduleItem);
         
         // Reset form
         setInputValue("");
         setSelectedTime("");
         setRepeatFrequency("none");
+        setSelectedDate(new Date());
         setIsAdding(false);
         
-        // Refresh activities list
-        await refreshActivities();
+        // Refresh both data sources
+        await Promise.all([refreshActivities(), refreshScheduleItems()]);
         
         toast({
           description: "Activity added successfully",
@@ -105,6 +103,9 @@ const ActivityTracker = () => {
         setInputValue("");
         setEditingActivityId(null);
         await refreshActivities();
+        toast({
+          description: "Activity updated successfully",
+        });
       }
     } catch (error) {
       console.error("Error updating activity:", error);
@@ -119,8 +120,23 @@ const ActivityTracker = () => {
     setIsAdding(false);
   };
   
+  const handleToggleCompleted = async (id: string) => {
+    const success = await toggleActivityCompleted(id);
+    if (success) {
+      await refreshActivities();
+    }
+  };
+  
+  const handleDeleteActivity = async (id: string) => {
+    const success = await deleteActivity(id);
+    if (success) {
+      await refreshActivities();
+    }
+  };
+  
   const today = format(new Date(), 'yyyy-MM-dd');
   const todaysActivities = activities.filter(activity => activity.date === today);
+  const plannedActivities = activities.filter(activity => activity.date > today);
 
   return (
     <div className="space-y-6">
@@ -140,6 +156,16 @@ const ActivityTracker = () => {
                 value={inputValue}
                 onChange={e => setInputValue(e.target.value)}
                 disabled={submitting}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    if (editingActivityId) {
+                      handleUpdateActivity();
+                    } else {
+                      handleAddActivity();
+                    }
+                  }
+                }}
               />
               
               {isAdding && (
@@ -150,7 +176,7 @@ const ActivityTracker = () => {
                         <Button
                           variant="outline"
                           className={cn(
-                            "justify-start text-left font-normal w-full",
+                            "justify-start text-left font-normal flex-1",
                             !selectedDate && "text-muted-foreground"
                           )}
                           disabled={submitting}
@@ -165,7 +191,6 @@ const ActivityTracker = () => {
                           selected={selectedDate}
                           onSelect={(date) => date && setSelectedDate(date)}
                           initialFocus
-                          className="p-3 pointer-events-auto"
                         />
                       </PopoverContent>
                     </Popover>
@@ -180,6 +205,7 @@ const ActivityTracker = () => {
                       className="flex-1"
                       disabled={submitting}
                     />
+                    <Clock className="h-4 w-4 text-muted-foreground" />
                   </div>
                   
                   <div className="flex gap-2 items-center">
@@ -240,76 +266,34 @@ const ActivityTracker = () => {
             </Card>
           ))}
         </div>
-      ) : todaysActivities.length > 0 ? (
-        <div className="space-y-2">
-          <h3 className="font-medium text-lg">Today's Activities</h3>
-          {todaysActivities.map(activity => (
-            <Card key={activity.id} className="overflow-hidden">
-              <div 
-                className={`h-1 ${activity.completed ? "bg-mint" : "bg-muted"}`}
-                style={{ width: "100%" }}
-              />
-              <CardContent className="pt-3 pb-3 flex items-center justify-between">
-                <div className="flex items-center flex-1">
-                  <div
-                    className={`h-5 w-5 rounded border mr-3 flex items-center justify-center cursor-pointer ${
-                      activity.completed ? "bg-mint border-mint" : "border-muted-foreground"
-                    }`}
-                    onClick={() => activity.id && toggleActivityCompleted(activity.id)}
-                  >
-                    {activity.completed && <Check className="h-3 w-3 text-white" />}
-                  </div>
-                  <span className={activity.completed ? "line-through text-muted-foreground" : ""}>
-                    {activity.description}
-                  </span>
-                </div>
-                <div className="flex gap-1">
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="h-8 w-8 p-0"
-                    onClick={() => activity.id && startEditActivity(activity.id, activity.description)}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="h-8 w-8 p-0 text-destructive hover:text-destructive/80 hover:bg-destructive/10"
-                    onClick={() => activity.id && deleteActivity(activity.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
       ) : (
-        <div className="text-center py-6">
-          <p className="text-muted-foreground">No activities added yet</p>
-        </div>
-      )}
-      
-      <div className="space-y-2 mt-8">
-        <h3 className="font-medium text-lg">Planned Activities</h3>
-        {activities.filter(activity => activity.date > today).length > 0 ? (
+        <>
           <div className="space-y-2">
-            {activities
-              .filter(activity => activity.date > today)
-              .sort((a, b) => a.date.localeCompare(b.date))
-              .map(activity => (
-                <Card key={activity.id}>
+            <h3 className="font-medium text-lg">Today's Activities</h3>
+            {todaysActivities.length > 0 ? (
+              todaysActivities.map(activity => (
+                <Card key={activity.id} className="overflow-hidden">
+                  <div 
+                    className={`h-1 ${activity.completed ? "bg-green-500" : "bg-muted"}`}
+                    style={{ width: "100%" }}
+                  />
                   <CardContent className="pt-3 pb-3 flex items-center justify-between">
                     <div className="flex items-center flex-1">
-                      <div className="mr-3 text-muted-foreground">
-                        <Calendar className="h-4 w-4" />
+                      <div
+                        className={`h-5 w-5 rounded border mr-3 flex items-center justify-center cursor-pointer transition-colors ${
+                          activity.completed ? "bg-green-500 border-green-500" : "border-muted-foreground hover:border-primary"
+                        }`}
+                        onClick={() => activity.id && handleToggleCompleted(activity.id)}
+                      >
+                        {activity.completed && <Check className="h-3 w-3 text-white" />}
                       </div>
-                      <div>
-                        <p>{activity.description}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {format(new Date(activity.date), "PPP")}
-                        </p>
+                      <div className="flex-1">
+                        <span className={activity.completed ? "line-through text-muted-foreground" : ""}>
+                          {activity.description}
+                        </span>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                          <span>{format(new Date(activity.date), "MMM d, yyyy")}</span>
+                        </div>
                       </div>
                     </div>
                     <div className="flex gap-1">
@@ -325,21 +309,67 @@ const ActivityTracker = () => {
                         variant="ghost" 
                         size="sm" 
                         className="h-8 w-8 p-0 text-destructive hover:text-destructive/80 hover:bg-destructive/10"
-                        onClick={() => activity.id && deleteActivity(activity.id)}
+                        onClick={() => activity.id && handleDeleteActivity(activity.id)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+              ))
+            ) : (
+              <div className="text-center py-6">
+                <p className="text-muted-foreground">No activities for today</p>
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="text-center py-6">
-            <p className="text-muted-foreground">No planned activities</p>
-          </div>
-        )}
-      </div>
+          
+          {plannedActivities.length > 0 && (
+            <div className="space-y-2 mt-8">
+              <h3 className="font-medium text-lg">Planned Activities</h3>
+              <div className="space-y-2">
+                {plannedActivities
+                  .sort((a, b) => a.date.localeCompare(b.date))
+                  .map(activity => (
+                    <Card key={activity.id}>
+                      <CardContent className="pt-3 pb-3 flex items-center justify-between">
+                        <div className="flex items-center flex-1">
+                          <div className="mr-3 text-muted-foreground">
+                            <Calendar className="h-4 w-4" />
+                          </div>
+                          <div>
+                            <p>{activity.description}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {format(new Date(activity.date), "PPP")}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex gap-1">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-8 w-8 p-0"
+                            onClick={() => activity.id && startEditActivity(activity.id, activity.description)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-8 w-8 p-0 text-destructive hover:text-destructive/80 hover:bg-destructive/10"
+                            onClick={() => activity.id && handleDeleteActivity(activity.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 };

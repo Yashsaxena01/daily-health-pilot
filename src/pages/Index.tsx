@@ -4,33 +4,44 @@ import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import PageContainer from "@/components/layout/PageContainer";
-import { ArrowRight, Activity, Weight, Calendar, Plus, Check } from "lucide-react";
+import { ArrowRight, Activity, Weight, Plus, Check } from "lucide-react";
 import WeightGraph from "@/components/weight/WeightGraph";
 import { format } from "date-fns";
 import { Input } from "@/components/ui/input";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@/hooks/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { useWeightData } from "@/hooks/useWeightData";
 import { useScheduleItems } from "@/hooks/useScheduleItems";
-import { useFoodSummary } from "@/hooks/useFoodSummary";
+import { useEliminationDiet } from "@/hooks/useEliminationDiet";
 
 const Index = () => {
   const { weightData, addWeightEntry, refreshWeightData } = useWeightData();
   const { scheduleItems, getTodaysItems, refreshScheduleItems } = useScheduleItems();
-  const { summaryData: foodSummaryData, refreshFoodSummary } = useFoodSummary();
+  const { getTodaysFood, refreshEliminationDiet } = useEliminationDiet();
   
   const [weight, setWeight] = useState("");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
 
-  // Ensure we're refreshing data from server on page load
+  // Refresh data on page load and set up periodic refresh
   useEffect(() => {
-    refreshWeightData();
-    refreshScheduleItems();
-    refreshFoodSummary();
-  }, []);
+    const refreshAllData = async () => {
+      await Promise.all([
+        refreshWeightData(),
+        refreshScheduleItems(),
+        refreshEliminationDiet()
+      ]);
+    };
+    
+    refreshAllData();
+    
+    // Set up periodic refresh every 5 seconds to catch updates
+    const interval = setInterval(refreshAllData, 5000);
+    
+    return () => clearInterval(interval);
+  }, [refreshWeightData, refreshScheduleItems, refreshEliminationDiet]);
   
-  const handleAddWeight = () => {
+  const handleAddWeight = async () => {
     if (!weight) return;
     
     const numWeight = parseFloat(weight);
@@ -42,12 +53,18 @@ const Index = () => {
       return;
     }
     
-    addWeightEntry(selectedDate || new Date(), numWeight);
-    setWeight("");
+    const success = await addWeightEntry(selectedDate || new Date(), numWeight);
+    if (success) {
+      setWeight("");
+      toast({
+        description: "Weight added successfully",
+      });
+    }
   };
 
-  // Get today's schedule items
+  // Get today's data
   const todaysSchedule = getTodaysItems();
+  const todaysFood = getTodaysFood();
   
   return (
     <PageContainer>
@@ -82,12 +99,16 @@ const Index = () => {
                     value={weight}
                     onChange={e => setWeight(e.target.value)}
                     className="w-full"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleAddWeight();
+                      }
+                    }}
                   />
                 </div>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full sm:w-auto flex items-center gap-2">
-                      <Calendar className="h-4 w-4" />
                       {selectedDate ? format(selectedDate, "MMM d, yyyy") : "Select date"}
                     </Button>
                   </PopoverTrigger>
@@ -120,25 +141,24 @@ const Index = () => {
           </CardContent>
         </Card>
 
-        <Card className="border-accent/20">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-xl font-medium flex items-center">
-              Food Introduction
-            </CardTitle>
-            <Link to="/food">
-              <Button variant="ghost" size="sm" className="gap-1">
-                Go to page <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
-          </CardHeader>
-          <CardContent>
-            <div className="bg-secondary p-4 rounded-lg">
-              <h3 className="font-medium mb-2">Food to Introduce Today</h3>
-              {foodSummaryData.todaysFood ? (
+        {todaysFood && (
+          <Card className="border-accent/20">
+            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+              <CardTitle className="text-xl font-medium flex items-center">
+                Food to Introduce Today
+              </CardTitle>
+              <Link to="/food">
+                <Button variant="ghost" size="sm" className="gap-1">
+                  Go to page <ArrowRight className="h-4 w-4" />
+                </Button>
+              </Link>
+            </CardHeader>
+            <CardContent>
+              <div className="bg-secondary p-4 rounded-lg">
                 <div className="flex justify-between items-center">
                   <div>
-                    <p className="text-sm">{foodSummaryData.todaysFood.name}</p>
-                    <p className="text-xs text-muted-foreground">{foodSummaryData.todaysFood.category}</p>
+                    <p className="font-medium">{todaysFood.food.name}</p>
+                    <p className="text-sm text-muted-foreground">From category: {todaysFood.category.name}</p>
                   </div>
                   <Link to="/food">
                     <Button variant="outline" size="sm" className="h-8 w-8 p-0">
@@ -146,14 +166,10 @@ const Index = () => {
                     </Button>
                   </Link>
                 </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  No food scheduled for introduction today. Start your elimination diet in the Food section.
-                </p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <Card className="border-accent/20">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
@@ -171,16 +187,18 @@ const Index = () => {
             <div className="bg-secondary p-4 rounded-lg">
               <h3 className="font-medium mb-2">Today's Activities</h3>
               {todaysSchedule.length > 0 ? (
-                <div className="space-y-1">
+                <div className="space-y-2">
                   {todaysSchedule.map((item, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <div className="h-2 w-2 rounded-full bg-primary"></div>
+                    <div key={item.id || idx} className="flex items-center gap-2">
+                      <div className={`h-2 w-2 rounded-full ${item.completed ? 'bg-green-500' : 'bg-primary'}`}></div>
                       <p className="text-sm flex-1">
                         {item.title} 
                         <span className="text-xs text-muted-foreground">
                           {item.time ? ` (${item.time})` : ''}
+                          {item.repeatFrequency && item.repeatFrequency !== 'none' ? ` • ${item.repeatFrequency}` : ''}
                         </span>
                       </p>
+                      {item.completed && <Check className="h-3 w-3 text-green-500" />}
                     </div>
                   ))}
                 </div>

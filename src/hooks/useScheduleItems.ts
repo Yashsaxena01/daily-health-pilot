@@ -29,11 +29,11 @@ export const useScheduleItems = () => {
         .order('time', { ascending: true });
 
       if (error) {
-        console.error('Supabase error:', error);
+        console.error('Supabase error fetching schedule items:', error);
         throw error;
       }
 
-      console.log("Schedule items fetched:", data);
+      console.log("Schedule items fetched successfully:", data?.length || 0, "items");
       setScheduleItems(data || []);
     } catch (error) {
       console.error('Error fetching schedule items:', error);
@@ -51,39 +51,47 @@ export const useScheduleItems = () => {
     try {
       console.log("Adding schedule item:", item);
       
-      // Optimistic update
-      const tempItem: ScheduleItem = {
-        ...item,
-        id: `temp-${Date.now()}`
+      // Prepare data for insertion
+      const insertData = {
+        title: item.title,
+        description: item.description || null,
+        time: item.time || null,
+        date: item.date,
+        completed: item.completed || false,
+        repeat_frequency: item.repeatFrequency && item.repeatFrequency !== 'none' ? item.repeatFrequency : null
       };
       
-      setScheduleItems(prev => [tempItem, ...prev]);
+      console.log("Insert data prepared:", insertData);
       
       const { data, error } = await supabase
         .from('schedule_items')
-        .insert(item)
+        .insert(insertData)
         .select()
         .single();
 
       if (error) {
-        console.error("Supabase error:", error);
-        // Rollback optimistic update
-        setScheduleItems(prev => prev.filter(i => i.id !== tempItem.id));
+        console.error("Supabase error adding schedule item:", error);
         throw error;
       }
       
       if (data) {
-        console.log("Successfully added item:", data);
-        // Replace temp item with real one
-        setScheduleItems(prev => prev.map(i => 
-          i.id === tempItem.id ? data : i
-        ));
+        console.log("Schedule item added successfully:", data);
         
-        toast({
-          description: "Activity added successfully",
-        });
+        // Transform the response data to match our interface
+        const transformedData: ScheduleItem = {
+          id: data.id,
+          title: data.title,
+          description: data.description,
+          time: data.time,
+          date: data.date,
+          completed: data.completed,
+          repeatFrequency: data.repeat_frequency || 'none'
+        };
         
-        return data;
+        // Update local state
+        setScheduleItems(prev => [transformedData, ...prev]);
+        
+        return transformedData;
       }
     } catch (error) {
       console.error('Error adding schedule item:', error);
@@ -99,9 +107,20 @@ export const useScheduleItems = () => {
     try {
       console.log("Updating schedule item:", { id, updates });
       
+      // Transform updates to match database schema
+      const dbUpdates: any = {};
+      if (updates.title !== undefined) dbUpdates.title = updates.title;
+      if (updates.description !== undefined) dbUpdates.description = updates.description;
+      if (updates.time !== undefined) dbUpdates.time = updates.time;
+      if (updates.date !== undefined) dbUpdates.date = updates.date;
+      if (updates.completed !== undefined) dbUpdates.completed = updates.completed;
+      if (updates.repeatFrequency !== undefined) {
+        dbUpdates.repeat_frequency = updates.repeatFrequency === 'none' ? null : updates.repeatFrequency;
+      }
+      
       const { error } = await supabase
         .from('schedule_items')
-        .update(updates)
+        .update(dbUpdates)
         .eq('id', id);
 
       if (error) {
@@ -109,12 +128,14 @@ export const useScheduleItems = () => {
         throw error;
       }
 
+      // Update local state
       setScheduleItems(prev => 
         prev.map(item => 
           item.id === id ? { ...item, ...updates } : item
         )
       );
       
+      console.log("Schedule item updated successfully");
       return true;
     } catch (error) {
       console.error('Error updating schedule item:', error);
@@ -145,6 +166,7 @@ export const useScheduleItems = () => {
         throw error;
       }
       
+      console.log("Schedule item deleted successfully");
       return true;
     } catch (error) {
       console.error('Error deleting schedule item:', error);
@@ -158,13 +180,16 @@ export const useScheduleItems = () => {
 
   const getTodaysItems = () => {
     const today = new Date().toISOString().split('T')[0];
-    return scheduleItems
+    const todaysItems = scheduleItems
       .filter(item => item.date === today)
       .sort((a, b) => {
         if (!a.time) return 1;
         if (!b.time) return -1;
         return a.time.localeCompare(b.time);
       });
+    
+    console.log("Today's items:", todaysItems.length);
+    return todaysItems;
   };
 
   const getItemsByDateRange = (startDate: string, endDate: string) => {
