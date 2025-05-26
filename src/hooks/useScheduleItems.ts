@@ -33,7 +33,19 @@ export const useScheduleItems = () => {
       }
 
       console.log("Schedule items fetched successfully:", data?.length || 0, "items");
-      setScheduleItems(data || []);
+      
+      // Transform the data to match our interface
+      const transformedData = data?.map(item => ({
+        id: item.id,
+        title: item.title,
+        description: item.description,
+        time: item.time,
+        date: item.date,
+        completed: item.completed,
+        repeatFrequency: item.repeat_frequency || 'none'
+      })) || [];
+      
+      setScheduleItems(transformedData);
     } catch (error) {
       console.error('Error fetching schedule items:', error);
       setScheduleItems([]);
