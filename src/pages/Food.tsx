@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import PageContainer from "@/components/layout/PageContainer";
 import EliminationDiet from "@/components/food/EliminationDiet";
+import FoodIntolerances from "@/components/food/FoodIntolerances";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle, Calendar } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,7 +32,7 @@ const Food = () => {
         <CardContent>
           <div className="grid grid-cols-3 gap-2 text-sm">
             <div className="flex items-center gap-2">
-              <div className="h-3 w-3 rounded-full bg-green-500"></div>
+              <div className="h-3 w-3 rounded-full bg-orange-500"></div>
               <span>No reaction</span>
             </div>
             <div className="flex items-center gap-2">
@@ -46,9 +47,20 @@ const Food = () => {
         </CardContent>
       </Card>
 
-      <div className="pb-20">
-        <EliminationDiet colorCoding={true} />
-      </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="pb-20">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="elimination">Elimination Diet</TabsTrigger>
+          <TabsTrigger value="intolerances">Food Intolerances</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="elimination" className="mt-6">
+          <EliminationDiet colorCoding={true} />
+        </TabsContent>
+        
+        <TabsContent value="intolerances" className="mt-6">
+          <FoodIntolerances />
+        </TabsContent>
+      </Tabs>
     </PageContainer>
   );
 };

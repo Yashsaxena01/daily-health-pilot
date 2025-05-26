@@ -1,8 +1,10 @@
+
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import PageContainer from "@/components/layout/PageContainer";
+import TodaysFoodIntroduction from "@/components/food/TodaysFoodIntroduction";
 import { ArrowRight, Activity, Weight, Plus, Check } from "lucide-react";
 import WeightGraph from "@/components/weight/WeightGraph";
 import { format } from "date-fns";
@@ -16,7 +18,7 @@ import { useEliminationDiet } from "@/hooks/useEliminationDiet";
 
 const Index = () => {
   const { weightData, addWeightEntry, refreshWeightData } = useWeightData();
-  const { scheduleItems, getTodaysItems, refreshScheduleItems } = useScheduleItems();
+  const { scheduleItems, getTodaysItems, refreshScheduleItems, updateScheduleItem } = useScheduleItems();
   const { getTodaysFood, refreshEliminationDiet } = useEliminationDiet();
   
   const [weight, setWeight] = useState("");
@@ -59,7 +61,21 @@ const Index = () => {
     });
   };
 
-  // Get today's data
+  const handleToggleActivity = async (item: any) => {
+    if (!item.id) return;
+    
+    const success = await updateScheduleItem(item.id, { 
+      completed: !item.completed 
+    });
+    
+    if (success) {
+      toast({
+        description: item.completed ? "Activity marked as incomplete" : "Activity completed!",
+      });
+    }
+  };
+
+  // Get today's data - force refresh to get latest data
   const todaysSchedule = getTodaysItems();
   const todaysFood = getTodaysFood();
   
@@ -118,7 +134,7 @@ const Index = () => {
                     />
                   </PopoverContent>
                 </Popover>
-                <Button onClick={handleAddWeight} className="w-full sm:w-auto">
+                <Button onClick={handleAddWeight} className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600">
                   <Plus className="h-4 w-4 mr-1" />
                   Add Weight
                 </Button>
@@ -138,35 +154,7 @@ const Index = () => {
           </CardContent>
         </Card>
 
-        {todaysFood && (
-          <Card className="border-accent/20">
-            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardTitle className="text-xl font-medium flex items-center">
-                Food to Introduce Today
-              </CardTitle>
-              <Link to="/food">
-                <Button variant="ghost" size="sm" className="gap-1">
-                  Go to page <ArrowRight className="h-4 w-4" />
-                </Button>
-              </Link>
-            </CardHeader>
-            <CardContent>
-              <div className="bg-secondary p-4 rounded-lg">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <p className="font-medium">{todaysFood.food.name}</p>
-                    <p className="text-sm text-muted-foreground">From category: {todaysFood.category.name}</p>
-                  </div>
-                  <Link to="/food">
-                    <Button variant="outline" size="sm" className="h-8 w-8 p-0">
-                      <Check className="h-4 w-4" />
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        <TodaysFoodIntroduction />
 
         <Card className="border-accent/20">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
@@ -186,16 +174,24 @@ const Index = () => {
               {todaysSchedule.length > 0 ? (
                 <div className="space-y-2">
                   {todaysSchedule.map((item, idx) => (
-                    <div key={item.id || idx} className="flex items-center gap-2">
-                      <div className={`h-2 w-2 rounded-full ${item.completed ? 'bg-green-500' : 'bg-primary'}`}></div>
-                      <p className="text-sm flex-1">
+                    <div key={item.id || idx} className="flex items-center gap-2 group">
+                      <button
+                        onClick={() => handleToggleActivity(item)}
+                        className={`h-4 w-4 rounded-full border-2 flex items-center justify-center transition-colors ${
+                          item.completed 
+                            ? 'bg-orange-500 border-orange-500' 
+                            : 'border-gray-300 hover:border-orange-400'
+                        }`}
+                      >
+                        {item.completed && <Check className="h-2 w-2 text-white" />}
+                      </button>
+                      <p className={`text-sm flex-1 ${item.completed ? 'line-through text-muted-foreground' : ''}`}>
                         {item.title} 
                         <span className="text-xs text-muted-foreground">
                           {item.time ? ` (${item.time})` : ''}
                           {item.repeatFrequency && item.repeatFrequency !== 'none' ? ` • ${item.repeatFrequency}` : ''}
                         </span>
                       </p>
-                      {item.completed && <Check className="h-3 w-3 text-green-500" />}
                     </div>
                   ))}
                 </div>

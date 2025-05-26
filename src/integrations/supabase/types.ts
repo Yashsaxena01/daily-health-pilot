@@ -69,6 +69,42 @@ export type Database = {
         }
         Relationships: []
       }
+      food_intolerances: {
+        Row: {
+          category: string
+          created_at: string
+          discovered_date: string
+          food_name: string
+          id: string
+          reaction_level: string
+          reaction_notes: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          discovered_date?: string
+          food_name: string
+          id?: string
+          reaction_level: string
+          reaction_notes?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          discovered_date?: string
+          food_name?: string
+          id?: string
+          reaction_level?: string
+          reaction_notes?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       food_summaries: {
         Row: {
           created_at: string | null
