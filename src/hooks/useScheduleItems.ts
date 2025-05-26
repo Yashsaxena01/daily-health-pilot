@@ -1,7 +1,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@/hooks/use-toast";
 
 export interface ScheduleItem {
   id?: string;
@@ -20,21 +20,24 @@ export const useScheduleItems = () => {
   const fetchScheduleItems = useCallback(async () => {
     try {
       setLoading(true);
+      console.log("Fetching schedule items...");
+      
       const { data, error } = await supabase
         .from('schedule_items')
         .select('*')
         .order('date', { ascending: false })
         .order('time', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
 
+      console.log("Schedule items fetched:", data);
       setScheduleItems(data || []);
     } catch (error) {
       console.error('Error fetching schedule items:', error);
-      toast({
-        description: "Failed to load schedule items",
-        variant: "destructive",
-      });
+      setScheduleItems([]);
     } finally {
       setLoading(false);
     }
@@ -46,27 +49,41 @@ export const useScheduleItems = () => {
 
   const addScheduleItem = async (item: Omit<ScheduleItem, 'id'>) => {
     try {
-      console.log("Adding schedule item:", item); // Debug log
+      console.log("Adding schedule item:", item);
+      
+      // Optimistic update
+      const tempItem: ScheduleItem = {
+        ...item,
+        id: `temp-${Date.now()}`
+      };
+      
+      setScheduleItems(prev => [tempItem, ...prev]);
       
       const { data, error } = await supabase
         .from('schedule_items')
         .insert(item)
-        .select();
+        .select()
+        .single();
 
       if (error) {
-        console.error("Supabase error:", error); // Debug log
+        console.error("Supabase error:", error);
+        // Rollback optimistic update
+        setScheduleItems(prev => prev.filter(i => i.id !== tempItem.id));
         throw error;
       }
       
-      if (data && data[0]) {
-        console.log("Successfully added item:", data[0]); // Debug log
-        setScheduleItems(prev => [data[0], ...prev]);
+      if (data) {
+        console.log("Successfully added item:", data);
+        // Replace temp item with real one
+        setScheduleItems(prev => prev.map(i => 
+          i.id === tempItem.id ? data : i
+        ));
         
         toast({
           description: "Activity added successfully",
         });
         
-        return data[0];
+        return data;
       }
     } catch (error) {
       console.error('Error adding schedule item:', error);
@@ -74,17 +91,23 @@ export const useScheduleItems = () => {
         description: "Failed to add schedule item",
         variant: "destructive",
       });
+      return null;
     }
   };
 
   const updateScheduleItem = async (id: string, updates: Partial<ScheduleItem>) => {
     try {
+      console.log("Updating schedule item:", { id, updates });
+      
       const { error } = await supabase
         .from('schedule_items')
         .update(updates)
         .eq('id', id);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error updating schedule item:", error);
+        throw error;
+      }
 
       setScheduleItems(prev => 
         prev.map(item => 
@@ -105,14 +128,23 @@ export const useScheduleItems = () => {
 
   const deleteScheduleItem = async (id: string) => {
     try {
+      console.log("Deleting schedule item:", id);
+      
+      // Optimistic update
+      const originalItems = scheduleItems;
+      setScheduleItems(prev => prev.filter(item => item.id !== id));
+      
       const { error } = await supabase
         .from('schedule_items')
         .delete()
         .eq('id', id);
 
-      if (error) throw error;
-
-      setScheduleItems(prev => prev.filter(item => item.id !== id));
+      if (error) {
+        // Rollback optimistic update
+        setScheduleItems(originalItems);
+        throw error;
+      }
+      
       return true;
     } catch (error) {
       console.error('Error deleting schedule item:', error);
@@ -139,17 +171,14 @@ export const useScheduleItems = () => {
     return scheduleItems
       .filter(item => item.date >= startDate && item.date <= endDate)
       .sort((a, b) => {
-        // First compare by date
         if (a.date !== b.date) {
           return a.date.localeCompare(b.date);
         }
         
-        // If same date, compare by time if both have time
         if (a.time && b.time) {
           return a.time.localeCompare(b.time);
         }
         
-        // If one has time and the other doesn't, prioritize the one with time
         if (a.time && !b.time) return -1;
         if (!a.time && b.time) return 1;
         

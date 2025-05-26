@@ -1,7 +1,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@/hooks/use-toast";
 
 export interface Activity {
   id?: string;
@@ -17,20 +17,24 @@ export const useActivityData = () => {
   const fetchActivities = useCallback(async () => {
     try {
       setLoading(true);
+      console.log("Fetching activities...");
+      
       const { data, error } = await supabase
         .from('activities')
         .select('*')
         .order('date', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
 
+      console.log("Activities fetched:", data);
       setActivities(data || []);
     } catch (error) {
       console.error('Error fetching activities:', error);
-      toast({
-        description: "Failed to load activities",
-        variant: "destructive",
-      });
+      // Don't show toast for network errors to avoid spam
+      setActivities([]);
     } finally {
       setLoading(false);
     }
@@ -44,25 +48,41 @@ export const useActivityData = () => {
     try {
       console.log("Adding activity:", { description, date });
       
+      // Optimistically update UI first
+      const tempActivity: Activity = {
+        id: `temp-${Date.now()}`,
+        description,
+        date,
+        completed: false
+      };
+      
+      setActivities(prev => [tempActivity, ...prev]);
+      
       const { data, error } = await supabase
         .from('activities')
         .insert({ description, date, completed: false })
-        .select();
+        .select()
+        .single();
 
       if (error) {
         console.error("Error adding activity:", error);
+        // Rollback optimistic update
+        setActivities(prev => prev.filter(a => a.id !== tempActivity.id));
         throw error;
       }
 
-      if (data && data[0]) {
-        console.log("Activity added successfully:", data[0]);
-        setActivities(prev => [data[0], ...prev]);
+      if (data) {
+        console.log("Activity added successfully:", data);
+        // Replace temp activity with real one
+        setActivities(prev => prev.map(a => 
+          a.id === tempActivity.id ? data : a
+        ));
         
         toast({
           description: "Activity added successfully",
         });
         
-        return data[0];
+        return data;
       }
     } catch (error) {
       console.error('Error adding activity:', error);
@@ -70,17 +90,23 @@ export const useActivityData = () => {
         description: "Failed to add activity",
         variant: "destructive",
       });
+      return null;
     }
   };
 
   const updateActivity = async (id: string, description: string) => {
     try {
+      console.log("Updating activity:", { id, description });
+      
       const { error } = await supabase
         .from('activities')
         .update({ description })
         .eq('id', id);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error updating activity:", error);
+        throw error;
+      }
 
       setActivities(prev => 
         prev.map(activity => 
@@ -108,18 +134,27 @@ export const useActivityData = () => {
       const activity = activities.find(a => a.id === id);
       if (!activity) return false;
 
-      const { error } = await supabase
-        .from('activities')
-        .update({ completed: !activity.completed })
-        .eq('id', id);
-
-      if (error) throw error;
-
+      // Optimistic update
       setActivities(prev => 
         prev.map(a => 
           a.id === id ? { ...a, completed: !a.completed } : a
         )
       );
+
+      const { error } = await supabase
+        .from('activities')
+        .update({ completed: !activity.completed })
+        .eq('id', id);
+
+      if (error) {
+        // Rollback optimistic update
+        setActivities(prev => 
+          prev.map(a => 
+            a.id === id ? { ...a, completed: activity.completed } : a
+          )
+        );
+        throw error;
+      }
       
       return true;
     } catch (error) {
@@ -134,14 +169,22 @@ export const useActivityData = () => {
 
   const deleteActivity = async (id: string) => {
     try {
+      console.log("Deleting activity:", id);
+      
+      // Optimistic update
+      const originalActivities = activities;
+      setActivities(prev => prev.filter(a => a.id !== id));
+      
       const { error } = await supabase
         .from('activities')
         .delete()
         .eq('id', id);
 
-      if (error) throw error;
-
-      setActivities(prev => prev.filter(a => a.id !== id));
+      if (error) {
+        // Rollback optimistic update
+        setActivities(originalActivities);
+        throw error;
+      }
       
       toast({
         description: "Activity deleted successfully",

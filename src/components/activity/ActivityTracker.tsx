@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Check, Edit, Plus, Trash2, Clock, Calendar } from "lucide-react";
 import { useActivityData } from "@/hooks/useActivityData";
 import { Skeleton } from "@/components/ui/skeleton";
-import { format, parse } from "date-fns";
+import { format } from "date-fns";
 import { useScheduleItems } from "@/hooks/useScheduleItems";
 import { 
   Select, 
@@ -22,11 +22,11 @@ import {
 } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@/hooks/use-toast";
 
 const ActivityTracker = () => {
   const { activities, loading, addActivity, updateActivity, toggleActivityCompleted, deleteActivity, refreshActivities } = useActivityData();
-  const { addScheduleItem } = useScheduleItems();
+  const { addScheduleItem, refreshScheduleItems } = useScheduleItems();
   
   const [isAdding, setIsAdding] = useState(false);
   const [editingActivityId, setEditingActivityId] = useState<string | null>(null);
@@ -34,62 +34,82 @@ const ActivityTracker = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedTime, setSelectedTime] = useState("");
   const [repeatFrequency, setRepeatFrequency] = useState<"none" | "daily" | "alternate" | "weekly" | "monthly">("none");
+  const [submitting, setSubmitting] = useState(false);
   
   const handleAddActivity = async () => {
-    if (!inputValue.trim()) return;
+    if (!inputValue.trim() || submitting) return;
     
+    setSubmitting(true);
     const formattedDate = format(selectedDate, "yyyy-MM-dd");
     
     try {
+      console.log("Adding activity with data:", {
+        description: inputValue.trim(),
+        date: formattedDate,
+        time: selectedTime,
+        repeatFrequency
+      });
+      
       // Add to activities table
       const newActivity = await addActivity(inputValue.trim(), formattedDate);
-      console.log("New activity added:", newActivity);
       
-      // If time or repeat is selected, also add to schedule_items
-      if (selectedTime || repeatFrequency !== "none") {
-        const scheduleItem = await addScheduleItem({
-          title: inputValue.trim(),
-          description: `Activity scheduled for ${format(selectedDate, "PPP")}${selectedTime ? ` at ${selectedTime}` : ''}`,
-          time: selectedTime,
-          date: formattedDate,
-          completed: false,
-          repeatFrequency: repeatFrequency === "none" ? undefined : repeatFrequency
-        });
+      if (newActivity) {
+        // If time or repeat is selected, also add to schedule_items
+        if (selectedTime || repeatFrequency !== "none") {
+          const scheduleItem = await addScheduleItem({
+            title: inputValue.trim(),
+            description: `Activity scheduled for ${format(selectedDate, "PPP")}${selectedTime ? ` at ${selectedTime}` : ''}`,
+            time: selectedTime,
+            date: formattedDate,
+            completed: false,
+            repeatFrequency: repeatFrequency === "none" ? undefined : repeatFrequency
+          });
+          
+          console.log("Added schedule item:", scheduleItem);
+          
+          // Refresh schedule items to show the new item
+          await refreshScheduleItems();
+        }
         
-        console.log("Added schedule item:", scheduleItem);
+        // Reset form
+        setInputValue("");
+        setSelectedTime("");
+        setRepeatFrequency("none");
+        setIsAdding(false);
+        
+        // Refresh activities list
+        await refreshActivities();
+        
+        toast({
+          description: "Activity added successfully",
+        });
       }
-      
-      // Reset form
-      setInputValue("");
-      setSelectedTime("");
-      setRepeatFrequency("none");
-      setIsAdding(false);
-      
-      // Refresh activities list
-      await refreshActivities();
-      
-      toast({
-        description: "Activity added successfully",
-      });
     } catch (error) {
       console.error("Error in handleAddActivity:", error);
       toast({
         description: "Failed to add activity",
         variant: "destructive",
       });
+    } finally {
+      setSubmitting(false);
     }
   };
   
   const handleUpdateActivity = async () => {
-    if (!inputValue.trim() || !editingActivityId) return;
+    if (!inputValue.trim() || !editingActivityId || submitting) return;
     
+    setSubmitting(true);
     try {
-      await updateActivity(editingActivityId, inputValue.trim());
-      setInputValue("");
-      setEditingActivityId(null);
-      await refreshActivities();
+      const success = await updateActivity(editingActivityId, inputValue.trim());
+      if (success) {
+        setInputValue("");
+        setEditingActivityId(null);
+        await refreshActivities();
+      }
     } catch (error) {
       console.error("Error updating activity:", error);
+    } finally {
+      setSubmitting(false);
     }
   };
   
@@ -105,7 +125,7 @@ const ActivityTracker = () => {
   return (
     <div className="space-y-6">
       {!isAdding && !editingActivityId && (
-        <Button onClick={() => setIsAdding(true)} className="w-full">
+        <Button onClick={() => setIsAdding(true)} className="w-full" disabled={submitting}>
           <Plus className="h-4 w-4 mr-1" />
           Add Activity
         </Button>
@@ -119,6 +139,7 @@ const ActivityTracker = () => {
                 placeholder="Description of your activity"
                 value={inputValue}
                 onChange={e => setInputValue(e.target.value)}
+                disabled={submitting}
               />
               
               {isAdding && (
@@ -132,6 +153,7 @@ const ActivityTracker = () => {
                             "justify-start text-left font-normal w-full",
                             !selectedDate && "text-muted-foreground"
                           )}
+                          disabled={submitting}
                         >
                           <Calendar className="mr-2 h-4 w-4" />
                           {selectedDate ? format(selectedDate, "PPP") : "Pick a date"}
@@ -156,11 +178,12 @@ const ActivityTracker = () => {
                       onChange={e => setSelectedTime(e.target.value)}
                       placeholder="Time (optional)"
                       className="flex-1"
+                      disabled={submitting}
                     />
                   </div>
                   
                   <div className="flex gap-2 items-center">
-                    <Select value={repeatFrequency} onValueChange={(value) => setRepeatFrequency(value as any)}>
+                    <Select value={repeatFrequency} onValueChange={(value) => setRepeatFrequency(value as any)} disabled={submitting}>
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Repeat frequency" />
                       </SelectTrigger>
@@ -180,11 +203,11 @@ const ActivityTracker = () => {
             <div className="flex gap-2">
               <Button 
                 onClick={editingActivityId ? handleUpdateActivity : handleAddActivity}
-                disabled={!inputValue.trim()}
+                disabled={!inputValue.trim() || submitting}
                 className="flex-1"
               >
                 <Check className="h-4 w-4 mr-1" />
-                {editingActivityId ? "Update" : "Add"}
+                {submitting ? "Saving..." : (editingActivityId ? "Update" : "Add")}
               </Button>
               <Button 
                 variant="outline" 
@@ -197,6 +220,7 @@ const ActivityTracker = () => {
                   setRepeatFrequency("none");
                 }}
                 className="flex-1"
+                disabled={submitting}
               >
                 Cancel
               </Button>

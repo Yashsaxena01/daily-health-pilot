@@ -15,8 +15,13 @@ import Index from "./pages/Index";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 1, // Reduce retry attempts for better error reporting
-      refetchOnWindowFocus: false // Disable automatic refetching on window focus
+      retry: 2,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: true,
+    },
+    mutations: {
+      retry: 1,
     }
   }
 });
