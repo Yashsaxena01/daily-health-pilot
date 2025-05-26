@@ -34,7 +34,7 @@ export const useScheduleItems = () => {
 
       console.log("Schedule items fetched successfully:", data?.length || 0, "items");
       
-      // Transform the data to match our interface
+      // Transform the data to match our interface with proper type casting
       const transformedData = data?.map(item => ({
         id: item.id,
         title: item.title,
@@ -42,7 +42,9 @@ export const useScheduleItems = () => {
         time: item.time,
         date: item.date,
         completed: item.completed,
-        repeatFrequency: item.repeat_frequency || 'none'
+        repeatFrequency: (item.repeat_frequency && ['daily', 'alternate', 'weekly', 'monthly'].includes(item.repeat_frequency)) 
+          ? item.repeat_frequency as 'daily' | 'alternate' | 'weekly' | 'monthly'
+          : 'none' as const
       })) || [];
       
       setScheduleItems(transformedData);
@@ -96,7 +98,9 @@ export const useScheduleItems = () => {
           time: data.time,
           date: data.date,
           completed: data.completed,
-          repeatFrequency: data.repeat_frequency || 'none'
+          repeatFrequency: (data.repeat_frequency && ['daily', 'alternate', 'weekly', 'monthly'].includes(data.repeat_frequency)) 
+            ? data.repeat_frequency as 'daily' | 'alternate' | 'weekly' | 'monthly'
+            : 'none' as const
         };
         
         // Update local state
