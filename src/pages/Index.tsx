@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -53,13 +52,11 @@ const Index = () => {
       return;
     }
     
-    const success = await addWeightEntry(selectedDate || new Date(), numWeight);
-    if (success) {
-      setWeight("");
-      toast({
-        description: "Weight added successfully",
-      });
-    }
+    await addWeightEntry(selectedDate || new Date(), numWeight);
+    setWeight("");
+    toast({
+      description: "Weight added successfully",
+    });
   };
 
   // Get today's data

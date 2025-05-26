@@ -53,76 +53,64 @@ const EliminationDiet = ({ colorCoding = false }: EliminationDietProps) => {
     if (!newCategoryName.trim()) return;
     
     console.log("Adding category:", newCategoryName);
-    const success = await addCategory(newCategoryName.trim());
-    if (success) {
-      setNewCategoryName("");
-      setIsAddingCategory(false);
-      toast({
-        description: "Category added successfully",
-      });
-    }
+    await addCategory(newCategoryName.trim());
+    setNewCategoryName("");
+    setIsAddingCategory(false);
+    toast({
+      description: "Category added successfully",
+    });
   };
 
   const handleEditCategory = async (categoryId: string) => {
     if (!editingCategoryName.trim()) return;
     
     console.log("Updating category:", { categoryId, name: editingCategoryName });
-    const success = await updateCategory(categoryId, editingCategoryName.trim());
-    if (success) {
-      setEditingCategoryId(null);
-      setEditingCategoryName("");
-      toast({
-        description: "Category updated successfully",
-      });
-    }
+    await updateCategory(categoryId, editingCategoryName.trim());
+    setEditingCategoryId(null);
+    setEditingCategoryName("");
+    toast({
+      description: "Category updated successfully",
+    });
   };
   
   const handleDeleteCategory = async (categoryId: string) => {
     console.log("Deleting category:", categoryId);
-    const success = await deleteCategory(categoryId);
-    if (success) {
-      toast({
-        description: "Category deleted successfully",
-      });
-    }
+    await deleteCategory(categoryId);
+    toast({
+      description: "Category deleted successfully",
+    });
   };
   
   const handleAddFood = async (categoryId: string) => {
     if (!newFoodName.trim()) return;
     
     console.log("Adding food:", { categoryId, name: newFoodName });
-    const success = await addFood(categoryId, newFoodName.trim());
-    if (success) {
-      setNewFoodName("");
-      setIsAddingFood(null);
-      toast({
-        description: "Food item added successfully",
-      });
-    }
+    await addFood(categoryId, newFoodName.trim());
+    setNewFoodName("");
+    setIsAddingFood(null);
+    toast({
+      description: "Food item added successfully",
+    });
   };
   
   const handleEditFood = async (categoryId: string, foodId: string) => {
     if (!editingFoodName.trim()) return;
     
     console.log("Updating food:", { categoryId, foodId, name: editingFoodName });
-    const success = await updateFood(categoryId, foodId, { name: editingFoodName.trim() });
-    if (success) {
-      setEditingFoodId(null);
-      setEditingFoodName("");
-      toast({
-        description: "Food item updated successfully",
-      });
-    }
+    await updateFood(categoryId, foodId, { name: editingFoodName.trim() });
+    setEditingFoodId(null);
+    setEditingFoodName("");
+    toast({
+      description: "Food item updated successfully",
+    });
   };
   
   const handleDeleteFood = async (categoryId: string, foodId: string) => {
     console.log("Deleting food:", { categoryId, foodId });
-    const success = await deleteFood(categoryId, foodId);
-    if (success) {
-      toast({
-        description: "Food item deleted successfully",
-      });
-    }
+    await deleteFood(categoryId, foodId);
+    toast({
+      description: "Food item deleted successfully",
+    });
   };
   
   const handleToggleFood = (categoryId: string, foodId: string, food: any) => {
@@ -152,21 +140,19 @@ const EliminationDiet = ({ colorCoding = false }: EliminationDietProps) => {
       reaction: reactionText
     });
     
-    const success = await markFoodIntroduced(
+    await markFoodIntroduced(
       selectedFood.categoryId, 
       selectedFood.foodId, 
       reactionLevel, 
       reactionText || "No specific reaction noted."
     );
     
-    if (success) {
-      setSelectedFood(null);
-      setReactionText("");
-      setReactionLevel("none");
-      toast({
-        description: "Food reaction recorded successfully",
-      });
-    }
+    setSelectedFood(null);
+    setReactionText("");
+    setReactionLevel("none");
+    toast({
+      description: "Food reaction recorded successfully",
+    });
   };
 
   const getReactionColor = (reactionLevel?: string) => {
