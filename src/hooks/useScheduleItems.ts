@@ -69,6 +69,55 @@ export const useScheduleItems = () => {
     return todaysItems;
   }, [scheduleItems]);
 
+  const addScheduleItem = async (newItem: Omit<ScheduleItem, 'id'>) => {
+    try {
+      console.log("Adding schedule item:", newItem);
+      
+      const dbItem = {
+        title: newItem.title,
+        description: newItem.description,
+        date: newItem.date,
+        time: newItem.time,
+        completed: newItem.completed,
+        repeat_frequency: newItem.repeatFrequency
+      };
+      
+      const { data, error } = await supabase
+        .from('schedule_items')
+        .insert([dbItem])
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Error adding schedule item:", error);
+        throw error;
+      }
+      
+      console.log("Schedule item added successfully:", data);
+      
+      // Add to local state
+      const formattedItem: ScheduleItem = {
+        id: data.id,
+        title: data.title,
+        description: data.description,
+        date: data.date,
+        time: data.time,
+        completed: data.completed || false,
+        repeatFrequency: (data.repeat_frequency as 'none' | 'daily' | 'weekly' | 'monthly') || 'none'
+      };
+      
+      setScheduleItems(prev => [...prev, formattedItem]);
+      return formattedItem;
+    } catch (error) {
+      console.error('Error adding schedule item:', error);
+      toast({
+        description: "Failed to add schedule item",
+        variant: "destructive",
+      });
+      return null;
+    }
+  };
+
   const updateScheduleItem = async (id: string, updates: Partial<ScheduleItem>) => {
     try {
       console.log("Updating schedule item:", id, "with:", updates);
@@ -118,11 +167,44 @@ export const useScheduleItems = () => {
     }
   };
 
+  const deleteScheduleItem = async (id: string) => {
+    try {
+      console.log("Deleting schedule item:", id);
+      
+      // Optimistic update
+      setScheduleItems(prev => prev.filter(item => item.id !== id));
+      
+      const { error } = await supabase
+        .from('schedule_items')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.error("Error deleting schedule item:", error);
+        // Revert optimistic update on error
+        await fetchScheduleItems();
+        throw error;
+      }
+      
+      console.log("Schedule item deleted successfully");
+      return true;
+    } catch (error) {
+      console.error('Error deleting schedule item:', error);
+      toast({
+        description: "Failed to delete schedule item",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
   return {
     scheduleItems,
     loading,
     getTodaysItems,
+    addScheduleItem,
     updateScheduleItem,
+    deleteScheduleItem,
     refreshScheduleItems: fetchScheduleItems
   };
 };
