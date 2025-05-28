@@ -1,199 +1,189 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Weight } from "lucide-react";
+import { Weight, Plus, TrendingUp } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
-import { format, subDays } from "date-fns";
-
-interface WeightEntry {
-  id: string;
-  date: string;
-  weight: number;
-  displayDate: string;
-}
+import { useWeightData } from "@/hooks/useWeightData";
+import WeightGraph from "@/components/weight/WeightGraph";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { format } from "date-fns";
 
 const WeightPage = () => {
+  const { weightData, addWeightEntry, loading } = useWeightData();
   const [weight, setWeight] = useState("");
-  const [entries, setEntries] = useState<WeightEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [weightView, setWeightView] = useState<"daily" | "weekly" | "monthly">("weekly");
+  const [currentGraphDate, setCurrentGraphDate] = useState<Date>(new Date());
 
-  useEffect(() => {
-    fetchEntries();
-  }, []);
-
-  const fetchEntries = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("weight_entries")
-        .select("*")
-        .order("date", { ascending: false })
-        .limit(30);
-
-      if (error) throw error;
-
-      const formattedEntries = (data || []).map(entry => ({
-        id: entry.id,
-        date: entry.date,
-        weight: Number(entry.weight),
-        displayDate: format(new Date(entry.date), "MMM d")
-      }));
-
-      setEntries(formattedEntries);
-    } catch (error: any) {
-      console.error("Error fetching weight entries:", error);
+  const handleAddWeight = async () => {
+    if (!weight) return;
+    
+    const numWeight = parseFloat(weight);
+    if (isNaN(numWeight)) {
       toast({
-        title: "Error",
-        description: "Failed to load weight data",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const addWeight = async () => {
-    if (!weight || isNaN(Number(weight))) {
-      toast({
-        title: "Invalid weight",
         description: "Please enter a valid weight",
         variant: "destructive",
       });
       return;
     }
-
-    try {
-      const today = new Date().toISOString().split("T")[0];
-      
-      const { error } = await supabase
-        .from("weight_entries")
-        .insert({
-          date: today,
-          weight: Number(weight),
-        });
-
-      if (error) throw error;
-
-      setWeight("");
-      fetchEntries();
-      
-      toast({
-        title: "Success",
-        description: "Weight added successfully",
-      });
-    } catch (error: any) {
-      console.error("Error adding weight:", error);
-      toast({
-        title: "Error",
-        description: "Failed to add weight",
-        variant: "destructive",
-      });
-    }
+    
+    await addWeightEntry(selectedDate || new Date(), numWeight);
+    setWeight("");
+    toast({
+      description: "Weight added successfully",
+    });
   };
-
-  const chartData = entries.slice(0, 14).reverse();
 
   if (loading) {
     return (
-      <div className="p-4 max-w-md mx-auto">
+      <div className="p-6 max-w-4xl mx-auto">
         <div className="animate-pulse space-y-4">
           <div className="h-8 bg-gray-200 rounded"></div>
-          <div className="h-32 bg-gray-200 rounded"></div>
           <div className="h-64 bg-gray-200 rounded"></div>
         </div>
       </div>
     );
   }
 
+  const latestWeight = weightData.length > 0 ? weightData[0].weight : null;
+  const previousWeight = weightData.length > 1 ? weightData[1].weight : null;
+  const weightChange = latestWeight && previousWeight ? latestWeight - previousWeight : null;
+
   return (
-    <div className="p-4 max-w-md mx-auto space-y-4">
-      <div className="flex items-center mb-6">
-        <Weight className="h-6 w-6 mr-2 text-blue-600" />
-        <h1 className="text-2xl font-bold text-gray-900">Weight Tracker</h1>
+    <div className="p-6 max-w-4xl mx-auto space-y-6">
+      <div className="flex items-center mb-8">
+        <Weight className="h-8 w-8 mr-3 text-blue-600" />
+        <h1 className="text-3xl font-bold text-gray-900">Weight Tracking</h1>
       </div>
 
-      <Card>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="border border-blue-100">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg text-blue-800">Current Weight</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold text-gray-900">
+              {latestWeight ? `${latestWeight} kg` : "No data"}
+            </p>
+            {weightChange && (
+              <p className={`text-sm flex items-center mt-2 ${
+                weightChange > 0 ? 'text-red-600' : 'text-green-600'
+              }`}>
+                <TrendingUp className={`h-4 w-4 mr-1 ${
+                  weightChange > 0 ? 'rotate-0' : 'rotate-180'
+                }`} />
+                {Math.abs(weightChange).toFixed(1)} kg
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="border border-blue-100">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg text-blue-800">Total Entries</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold text-gray-900">{weightData.length}</p>
+            <p className="text-sm text-gray-600 mt-2">Weight measurements</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border border-blue-100">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg text-blue-800">Goal Progress</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-blue-600">On Track</p>
+            <p className="text-sm text-gray-600 mt-2">Keep up the good work!</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Add Weight Entry */}
+      <Card className="border border-blue-100">
         <CardHeader>
-          <CardTitle className="text-lg">Add Today's Weight</CardTitle>
+          <CardTitle className="text-xl text-blue-800">Add Weight Entry</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex gap-2">
-            <Input
-              type="number"
-              step="0.1"
-              placeholder="Enter weight (lbs)"
-              value={weight}
-              onChange={(e) => setWeight(e.target.value)}
-              className="flex-1"
-            />
-            <Button onClick={addWeight} className="bg-blue-600 hover:bg-blue-700">
-              <Plus className="h-4 w-4" />
+        <CardContent>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div className="w-full sm:flex-1">
+              <Input
+                type="number"
+                step="0.1"
+                placeholder="Enter your weight in kg"
+                value={weight}
+                onChange={e => setWeight(e.target.value)}
+                className="w-full text-lg"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleAddWeight();
+                  }
+                }}
+              />
+            </div>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-full sm:w-auto flex items-center gap-2">
+                  {selectedDate ? format(selectedDate, "MMM d, yyyy") : "Select date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="p-0" align="start">
+                <CalendarComponent
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={setSelectedDate}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+            <Button onClick={handleAddWeight} className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-lg py-3">
+              <Plus className="h-5 w-5 mr-2" />
+              Add Weight
             </Button>
           </div>
         </CardContent>
       </Card>
 
-      {chartData.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Weight Trend (Last 14 days)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-48 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData}>
-                  <XAxis 
-                    dataKey="displayDate" 
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fontSize: 12 }}
-                  />
-                  <YAxis 
-                    domain={['auto', 'auto']}
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fontSize: 12 }}
-                  />
-                  <Tooltip 
-                    contentStyle={{
-                      backgroundColor: 'white',
-                      border: '1px solid #ccc',
-                      borderRadius: '8px'
-                    }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="weight"
-                    stroke="#2563eb"
-                    strokeWidth={2}
-                    dot={{ fill: "#2563eb", strokeWidth: 2, r: 4 }}
-                    activeDot={{ r: 6 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Recent Entries</CardTitle>
+      {/* Weight Graph */}
+      <Card className="border border-blue-100">
+        <CardHeader className="flex flex-row items-center justify-between pb-3">
+          <CardTitle className="text-xl text-blue-800">Weight Progress</CardTitle>
+          <div className="flex bg-gray-100 rounded-lg overflow-hidden">
+            {(["daily", "weekly", "monthly"] as const).map((v) => (
+              <button
+                key={v}
+                onClick={() => setWeightView(v)}
+                className={`px-4 py-2 text-sm font-medium transition-colors ${
+                  weightView === v 
+                    ? "bg-blue-600 text-white" 
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                {v.charAt(0).toUpperCase() + v.slice(1)}
+              </button>
+            ))}
+          </div>
         </CardHeader>
         <CardContent>
-          {entries.length === 0 ? (
-            <p className="text-gray-500 text-center py-4">No entries yet</p>
+          {weightData.length > 0 ? (
+            <div className="h-80">
+              <WeightGraph 
+                data={weightData} 
+                view={weightView}
+                currentDate={currentGraphDate}
+                onDateChange={setCurrentGraphDate}
+                showNavigation={true}
+              />
+            </div>
           ) : (
-            <div className="space-y-2">
-              {entries.slice(0, 10).map((entry) => (
-                <div key={entry.id} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
-                  <span className="text-gray-600">{format(new Date(entry.date), "MMM d, yyyy")}</span>
-                  <span className="font-semibold text-gray-900">{entry.weight} lbs</span>
-                </div>
-              ))}
+            <div className="h-80 flex items-center justify-center text-gray-500 flex-col">
+              <Weight className="h-16 w-16 mb-4 text-gray-300" />
+              <p className="text-lg mb-2">No weight data recorded yet</p>
+              <p className="text-sm">Add your first entry to see your progress graph</p>
             </div>
           )}
         </CardContent>

@@ -1,13 +1,7 @@
-
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Plus, Utensils, CheckCircle } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { format } from "date-fns";
+import { useState } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Utensils, BookOpen, Plus } from "lucide-react";
+import FoodRepository from "@/components/food/FoodRepository";
 
 interface FoodEntry {
   id: string;
@@ -71,6 +65,9 @@ const FoodPage = () => {
     try {
       const today = new Date().toISOString().split("T")[0];
       
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      
       const { error } = await supabase
         .from("food_intolerances")
         .insert({
@@ -78,7 +75,8 @@ const FoodPage = () => {
           discovered_date: today,
           reaction_level: reactionLevel,
           reaction_notes: reactionNotes.trim(),
-          category: "elimination_diet"
+          category: "elimination_diet",
+          user_id: user?.id || null
         });
 
       if (error) throw error;
@@ -113,7 +111,7 @@ const FoodPage = () => {
 
   if (loading) {
     return (
-      <div className="p-4 max-w-md mx-auto">
+      <div className="p-6 max-w-2xl mx-auto">
         <div className="animate-pulse space-y-4">
           <div className="h-8 bg-gray-200 rounded"></div>
           <div className="h-48 bg-gray-200 rounded"></div>
@@ -124,85 +122,74 @@ const FoodPage = () => {
   }
 
   return (
-    <div className="p-4 max-w-md mx-auto space-y-4">
-      <div className="flex items-center mb-6">
-        <Utensils className="h-6 w-6 mr-2 text-green-600" />
-        <h1 className="text-2xl font-bold text-gray-900">Elimination Diet</h1>
+    <div className="p-6 max-w-4xl mx-auto space-y-6">
+      <div className="flex items-center mb-8">
+        <Utensils className="h-8 w-8 mr-3 text-emerald-600" />
+        <h1 className="text-3xl font-bold text-gray-900">Elimination Diet</h1>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Add Food Introduction</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Input
-            placeholder="Food name (e.g., Eggs, Dairy, Wheat)"
-            value={foodName}
-            onChange={(e) => setFoodName(e.target.value)}
-          />
-          
-          <div>
-            <label className="block text-sm font-medium mb-2">Reaction Level</label>
-            <div className="grid grid-cols-3 gap-2">
-              {["none", "mild", "severe"].map((level) => (
-                <Button
-                  key={level}
-                  variant={reactionLevel === level ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setReactionLevel(level)}
-                  className={reactionLevel === level ? getReactionColor(level) : ""}
-                >
-                  {level.charAt(0).toUpperCase() + level.slice(1)}
-                </Button>
-              ))}
-            </div>
-          </div>
-          
-          <Textarea
-            placeholder="How did you feel? (optional)"
-            value={reactionNotes}
-            onChange={(e) => setReactionNotes(e.target.value)}
-            rows={3}
-          />
-          
-          <Button onClick={addFoodEntry} className="w-full bg-green-600 hover:bg-green-700">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Food Entry
-          </Button>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Food History</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {entries.length === 0 ? (
-            <p className="text-gray-500 text-center py-4">No food entries yet</p>
-          ) : (
-            <div className="space-y-3">
-              {entries.map((entry) => (
-                <div key={entry.id} className="border border-gray-200 rounded-lg p-3">
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-semibold text-gray-900">{entry.food_name}</h3>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getReactionColor(entry.reaction_level)}`}>
-                      {entry.reaction_level}
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-600 mb-1">
-                    {format(new Date(entry.date), "MMM d, yyyy")}
-                  </p>
-                  {entry.reaction_notes && (
-                    <p className="text-sm text-gray-700 bg-gray-50 p-2 rounded">
-                      {entry.reaction_notes}
-                    </p>
-                  )}
+      <Tabs defaultValue="repository" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="repository" className="flex items-center gap-2">
+            <BookOpen className="h-4 w-4" />
+            Food Repository
+          </TabsTrigger>
+          <TabsTrigger value="tracking" className="flex items-center gap-2">
+            <Plus className="h-4 w-4" />
+            Track Introduction
+          </TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="repository" className="mt-6">
+          <FoodRepository />
+        </TabsContent>
+        
+        <TabsContent value="tracking" className="mt-6">
+          <Card className="border border-emerald-100">
+            <CardHeader>
+              <CardTitle className="text-xl text-emerald-800">Add Food Introduction</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <Input
+                placeholder="Food name (e.g., Eggs, Dairy, Wheat)"
+                value={foodName}
+                onChange={(e) => setFoodName(e.target.value)}
+                className="text-lg"
+              />
+              
+              <div>
+                <label className="block text-sm font-medium mb-3 text-gray-700">Reaction Level</label>
+                <div className="grid grid-cols-3 gap-3">
+                  {["none", "mild", "severe"].map((level) => (
+                    <Button
+                      key={level}
+                      variant={reactionLevel === level ? "default" : "outline"}
+                      size="lg"
+                      onClick={() => setReactionLevel(level)}
+                      className={reactionLevel === level ? getReactionColor(level) : ""}
+                    >
+                      {level.charAt(0).toUpperCase() + level.slice(1)}
+                    </Button>
+                  ))}
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              </div>
+              
+              <Textarea
+                placeholder="How did you feel? (optional)"
+                value={reactionNotes}
+                onChange={(e) => setReactionNotes(e.target.value)}
+                rows={3}
+                className="text-lg"
+              />
+              
+              <Button onClick={addFoodEntry} className="w-full bg-emerald-600 hover:bg-emerald-700 text-lg py-3">
+                <Plus className="h-5 w-5 mr-2" />
+                Add Food Entry
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
