@@ -32,7 +32,18 @@ export const useFoodIntolerances = () => {
       }
 
       console.log("Food intolerances fetched successfully:", data?.length || 0, "items");
-      setIntolerances(data || []);
+      
+      // Type cast the data to match our interface
+      const typedData: FoodIntolerance[] = (data || []).map(item => ({
+        id: item.id,
+        food_name: item.food_name,
+        category: item.category,
+        reaction_level: item.reaction_level as 'mild' | 'severe',
+        reaction_notes: item.reaction_notes,
+        discovered_date: item.discovered_date
+      }));
+      
+      setIntolerances(typedData);
     } catch (error) {
       console.error('Error fetching food intolerances:', error);
       setIntolerances([]);
@@ -69,8 +80,19 @@ export const useFoodIntolerances = () => {
       
       if (data) {
         console.log("Food intolerance added successfully:", data);
-        setIntolerances(prev => [data, ...prev]);
-        return data;
+        
+        // Type cast the returned data
+        const newIntolerance: FoodIntolerance = {
+          id: data.id,
+          food_name: data.food_name,
+          category: data.category,
+          reaction_level: data.reaction_level as 'mild' | 'severe',
+          reaction_notes: data.reaction_notes,
+          discovered_date: data.discovered_date
+        };
+        
+        setIntolerances(prev => [newIntolerance, ...prev]);
+        return newIntolerance;
       }
     } catch (error) {
       console.error('Error adding food intolerance:', error);

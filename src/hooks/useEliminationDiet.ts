@@ -1,7 +1,6 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@/hooks/use-toast";
 
 export interface Food {
   id?: string;
@@ -572,6 +571,37 @@ export const useEliminationDiet = () => {
     }
   };
 
+  // New function to mark food as introduced by foodId only
+  const markFoodAsIntroduced = async (
+    foodId: string, 
+    reactionLevel: 'none' | 'mild' | 'severe' = 'none',
+    reactionNotes?: string
+  ) => {
+    try {
+      // Find the category for this food
+      let categoryId = '';
+      for (const category of categories) {
+        const food = category.foods.find(f => f.id === foodId);
+        if (food) {
+          categoryId = category.id || '';
+          break;
+        }
+      }
+      
+      if (!categoryId) {
+        throw new Error('Food not found in any category');
+      }
+      
+      await markFoodIntroduced(categoryId, foodId, reactionLevel, reactionNotes);
+    } catch (error) {
+      console.error('Error marking food as introduced:', error);
+      toast({
+        description: "Failed to update food status",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Helper function to update food summary when a food is introduced
   const updateFoodSummary = async (
     categoryId: string,
@@ -677,6 +707,7 @@ export const useEliminationDiet = () => {
     updateFood,
     deleteFood,
     markFoodIntroduced,
+    markFoodAsIntroduced,
     reorderCategories,
     reorderFoods,
     getTodaysFood,
