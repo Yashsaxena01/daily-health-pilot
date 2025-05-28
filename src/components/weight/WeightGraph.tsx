@@ -99,7 +99,7 @@ const WeightGraph = ({
       return (
         <div className="bg-white p-2 border border-gray-200 shadow-sm rounded-md">
           <p className="font-medium">{label}</p>
-          <p className="text-sm">{`Weight: ${payload[0].value?.toFixed(1)} lbs`}</p>
+          <p className="text-sm">{`Weight: ${payload[0].value?.toFixed(1)} kg`}</p>
         </div>
       );
     }
@@ -130,16 +130,16 @@ const WeightGraph = ({
           data={processedData}
           margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
         >
-          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e5e5" />
+          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#374151" />
           <XAxis 
             dataKey="date" 
-            tick={{ fontSize: 12 }} 
+            tick={{ fontSize: 12, fill: '#9ca3af' }} 
             tickMargin={10}
             axisLine={false}
           />
           <YAxis 
             domain={['auto', 'auto']} 
-            tick={{ fontSize: 12 }}
+            tick={{ fontSize: 12, fill: '#9ca3af' }}
             tickMargin={10}
             axisLine={false}
           />
@@ -159,18 +159,18 @@ const WeightGraph = ({
         <div className="flex justify-between items-center mt-2 text-sm">
           <button 
             onClick={handlePrevious}
-            className="flex items-center text-muted-foreground hover:text-foreground transition-colors"
+            className="flex items-center text-gray-400 hover:text-white transition-colors"
           >
             ← Previous
           </button>
-          <div className="font-medium text-center">
+          <div className="font-medium text-center text-gray-300">
             {view === "weekly" && format(currentDate, "MMM d, yyyy")}
             {view === "monthly" && format(currentDate, "MMM yyyy")}
             {view === "daily" && format(currentDate, "MMM d, yyyy")}
           </div>
           <button 
             onClick={handleNext}
-            className="flex items-center text-muted-foreground hover:text-foreground transition-colors"
+            className="flex items-center text-gray-400 hover:text-white transition-colors"
           >
             Next →
           </button>

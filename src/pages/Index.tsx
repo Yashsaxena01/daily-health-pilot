@@ -88,6 +88,9 @@ const Index = () => {
   const todaysSchedule = getTodaysItems();
   const todaysFood = getTodaysFood();
   
+  // Sort weight data in reverse order for proper display
+  const sortedWeightData = [...weightData].reverse();
+  
   return (
     <PageContainer>
       <div className="mb-8">
@@ -98,14 +101,14 @@ const Index = () => {
       </div>
 
       <div className="grid gap-6 pb-24">
-        <Card className="border-accent/20">
+        <Card className="bg-black text-white border-gray-800">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-xl font-medium flex items-center">
               <Weight className="mr-2 h-5 w-5" />
               Weight Tracking
             </CardTitle>
             <div className="flex items-center gap-2">
-              <div className="flex bg-secondary rounded-lg overflow-hidden">
+              <div className="flex bg-gray-800 rounded-lg overflow-hidden">
                 {(["daily", "weekly", "monthly"] as const).map((v) => (
                   <button
                     key={v}
@@ -113,7 +116,7 @@ const Index = () => {
                     className={`px-2 py-1 text-xs font-medium transition-colors ${
                       weightView === v 
                         ? "bg-orange-500 text-white" 
-                        : "text-muted-foreground hover:text-foreground"
+                        : "text-gray-400 hover:text-white"
                     }`}
                   >
                     {v.charAt(0).toUpperCase() + v.slice(1)}
@@ -121,7 +124,7 @@ const Index = () => {
                 ))}
               </div>
               <Link to="/weight">
-                <Button variant="ghost" size="sm" className="gap-1">
+                <Button variant="ghost" size="sm" className="gap-1 text-white hover:bg-gray-800">
                   Details <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
@@ -134,10 +137,10 @@ const Index = () => {
                   <Input
                     type="number"
                     step="0.1"
-                    placeholder="Enter your weight"
+                    placeholder="Enter your weight in kg"
                     value={weight}
                     onChange={e => setWeight(e.target.value)}
-                    className="w-full"
+                    className="w-full bg-gray-800 border-gray-600 text-white placeholder:text-gray-400"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         handleAddWeight();
@@ -147,7 +150,7 @@ const Index = () => {
                 </div>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full sm:w-auto flex items-center gap-2">
+                    <Button variant="outline" className="w-full sm:w-auto flex items-center gap-2 bg-gray-800 border-gray-600 text-white hover:bg-gray-700">
                       {selectedDate ? format(selectedDate, "MMM d, yyyy") : "Select date"}
                     </Button>
                   </PopoverTrigger>
@@ -166,10 +169,10 @@ const Index = () => {
                 </Button>
               </div>
               
-              {weightData.length > 0 ? (
-                <div className="h-44">
+              {sortedWeightData.length > 0 ? (
+                <div className="h-44 bg-gray-900 rounded-lg p-2">
                   <WeightGraph 
-                    data={weightData} 
+                    data={sortedWeightData} 
                     view={weightView}
                     currentDate={currentGraphDate}
                     onDateChange={setCurrentGraphDate}
@@ -177,7 +180,7 @@ const Index = () => {
                   />
                 </div>
               ) : (
-                <div className="h-44 flex items-center justify-center text-muted-foreground flex-col">
+                <div className="h-44 flex items-center justify-center text-gray-400 flex-col">
                   <p>No weight data recorded yet</p>
                   <p className="text-sm">Add your first entry to see your progress graph</p>
                 </div>

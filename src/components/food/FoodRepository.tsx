@@ -7,6 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Search, Calendar, Trash2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { format } from "date-fns";
 
 interface FoodItem {
   id: string;
@@ -30,6 +34,7 @@ const FoodRepository = () => {
   const [newCategoryName, setNewCategoryName] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
+  const [dietStartDate, setDietStartDate] = useState<Date | undefined>(new Date());
 
   useEffect(() => {
     fetchData();
@@ -66,7 +71,7 @@ const FoodRepository = () => {
         id: food.id,
         name: food.name,
         category: food.food_categories?.name || "Uncategorized",
-        image_url: `https://images.unsplash.com/400x300/?${encodeURIComponent(food.name)}`,
+        image_url: `https://images.unsplash.com/200x200/?${encodeURIComponent(food.name)}&food`,
         scheduled_date: food.scheduled_date,
         introduced: food.introduced || false
       }));
@@ -85,8 +90,8 @@ const FoodRepository = () => {
   };
 
   const getUnsplashImage = (foodName: string) => {
-    const searchQuery = encodeURIComponent(foodName);
-    return `https://images.unsplash.com/400x300/?${searchQuery}`;
+    const searchQuery = encodeURIComponent(foodName.toLowerCase());
+    return `https://images.unsplash.com/200x200/?${searchQuery}&food`;
   };
 
   const addCategory = async () => {
@@ -215,6 +220,29 @@ const FoodRepository = () => {
           <CardTitle className="text-xl text-emerald-800">Food Repository</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* Diet Start Date */}
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
+              Diet Start Date:
+            </label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-full sm:w-auto flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  {dietStartDate ? format(dietStartDate, "MMM d, yyyy") : "Select start date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="p-0" align="start">
+                <CalendarComponent
+                  mode="single"
+                  selected={dietStartDate}
+                  onSelect={setDietStartDate}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+
           {/* Add Category */}
           <div className="flex gap-2">
             <Input
@@ -230,7 +258,7 @@ const FoodRepository = () => {
 
           {/* Add Food */}
           <div className="space-y-3">
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <Input
                 placeholder="Add new food item"
                 value={newFoodName}
@@ -240,7 +268,7 @@ const FoodRepository = () => {
               <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md"
+                className="px-3 py-2 border border-gray-300 rounded-md w-full sm:w-auto"
               >
                 <option value="">Select category</option>
                 {categories.map((category) => (
@@ -249,7 +277,7 @@ const FoodRepository = () => {
                   </option>
                 ))}
               </select>
-              <Button onClick={addFood} className="bg-emerald-600 hover:bg-emerald-700">
+              <Button onClick={addFood} className="bg-emerald-600 hover:bg-emerald-700 w-full sm:w-auto">
                 <Plus className="h-4 w-4" />
               </Button>
             </div>
@@ -268,60 +296,69 @@ const FoodRepository = () => {
         </CardContent>
       </Card>
 
-      {/* Food Categories */}
-      <div className="space-y-4">
+      {/* Food Categories as Accordions */}
+      <Accordion type="multiple" className="space-y-4">
         {Object.entries(groupedFoods).map(([category, categoryFoods]) => (
-          <Card key={category} className="border border-gray-200">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg text-gray-800">{category}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {categoryFoods.map((food) => (
-                  <div key={food.id} className="border rounded-lg p-3 space-y-3">
-                    <img
-                      src={getUnsplashImage(food.name)}
-                      alt={food.name}
-                      className="w-full h-32 object-cover rounded"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.src = `https://images.unsplash.com/400x300/?food`;
-                      }}
-                    />
-                    <div>
-                      <h3 className="font-medium text-gray-900">{food.name}</h3>
-                      <div className="flex items-center justify-between mt-2">
-                        {food.introduced ? (
-                          <Badge variant="secondary" className="bg-green-100 text-green-800">
-                            Introduced
-                          </Badge>
-                        ) : food.scheduled_date ? (
-                          <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-                            Scheduled
-                          </Badge>
-                        ) : (
-                          <input
-                            type="date"
-                            onChange={(e) => scheduleFood(food.id, e.target.value)}
-                            className="text-xs border rounded px-2 py-1"
-                          />
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                        >
-                          <Calendar className="h-3 w-3" />
-                        </Button>
+          <AccordionItem key={category} value={category}>
+            <Card className="border border-gray-200">
+              <AccordionTrigger className="px-6 py-4 hover:no-underline">
+                <CardTitle className="text-lg text-gray-800 flex items-center justify-between w-full">
+                  {category}
+                  <Badge variant="secondary" className="ml-2">
+                    {categoryFoods.length}
+                  </Badge>
+                </CardTitle>
+              </AccordionTrigger>
+              <AccordionContent>
+                <CardContent className="pt-0">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {categoryFoods.map((food) => (
+                      <div key={food.id} className="border rounded-lg p-3 space-y-3">
+                        <img
+                          src={getUnsplashImage(food.name)}
+                          alt={food.name}
+                          className="w-full h-32 object-cover rounded"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.src = `https://images.unsplash.com/200x200/?food&random=${Math.random()}`;
+                          }}
+                        />
+                        <div>
+                          <h3 className="font-medium text-gray-900">{food.name}</h3>
+                          <div className="flex items-center justify-between mt-2">
+                            {food.introduced ? (
+                              <Badge variant="secondary" className="bg-green-100 text-green-800">
+                                Introduced
+                              </Badge>
+                            ) : food.scheduled_date ? (
+                              <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                                Scheduled
+                              </Badge>
+                            ) : (
+                              <input
+                                type="date"
+                                onChange={(e) => scheduleFood(food.id, e.target.value)}
+                                className="text-xs border rounded px-2 py-1"
+                              />
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0"
+                            >
+                              <Calendar className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </AccordionContent>
+            </Card>
+          </AccordionItem>
         ))}
-      </div>
+      </Accordion>
     </div>
   );
 };

@@ -70,25 +70,41 @@ const TodaysFoodIntroduction = () => {
     }
   };
 
+  const getFoodImage = (foodName: string) => {
+    const searchQuery = encodeURIComponent(foodName.toLowerCase());
+    return `https://images.unsplash.com/200x200/?${searchQuery}&food`;
+  };
+
   if (!todaysFood) {
     return null;
   }
 
   return (
     <Card className="border-accent/20">
-      <CardHeader className="pb-2">
+      <CardHeader className="pb-3">
         <CardTitle className="text-xl font-medium flex items-center gap-2">
           <Apple className="h-5 w-5" />
           Today's Food Introduction
         </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-4">
         <div className="bg-secondary p-4 rounded-lg">
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="font-medium text-lg">{todaysFood.food.name}</p>
-              <div className="flex items-center gap-2 mt-1">
-                <Badge variant="outline">{todaysFood.category.name}</Badge>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div className="w-full sm:w-20 h-20 flex-shrink-0">
+              <img
+                src={getFoodImage(todaysFood.food.name)}
+                alt={todaysFood.food.name}
+                className="w-full h-full object-cover rounded-lg"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.src = `https://images.unsplash.com/200x200/?food&random=${Math.random()}`;
+                }}
+              />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-lg truncate">{todaysFood.food.name}</p>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-1">
+                <Badge variant="outline" className="w-fit">{todaysFood.category.name}</Badge>
                 <span className="text-sm text-muted-foreground">
                   Scheduled for today
                 </span>
@@ -96,11 +112,12 @@ const TodaysFoodIntroduction = () => {
             </div>
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="h-10 w-10 p-0">
-                  <Check className="h-5 w-5" />
+                <Button variant="outline" size="sm" className="w-full sm:w-auto sm:h-10 sm:px-4">
+                  <Check className="h-4 w-4 sm:mr-2" />
+                  <span className="sm:inline">Mark Complete</span>
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
+              <DialogContent className="sm:max-w-md mx-4">
                 <DialogHeader>
                   <DialogTitle>Record Food Introduction</DialogTitle>
                 </DialogHeader>
