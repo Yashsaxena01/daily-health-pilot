@@ -1,47 +1,39 @@
 
 import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import AppNavbar from "./components/layout/AppNavbar";
+import Navigation from "./components/Navigation";
 import Dashboard from "./pages/Dashboard";
-import Weight from "./pages/Weight";
-import Food from "./pages/Food";
-import Schedule from "./pages/Schedule";
-import NotFound from "./pages/NotFound";
-import Index from "./pages/Index";
+import WeightPage from "./pages/WeightPage";
+import FoodPage from "./pages/FoodPage";
+import SchedulePage from "./pages/SchedulePage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 2,
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      refetchOnWindowFocus: false,
-      refetchOnReconnect: true,
-    },
-    mutations: {
       retry: 1,
-    }
-  }
+      staleTime: 2 * 60 * 1000,
+      refetchOnWindowFocus: false,
+    },
+  },
 });
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
-      <Sonner />
       <BrowserRouter>
-        <div className="min-h-screen bg-background">
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/weight" element={<Weight />} />
-            <Route path="/food" element={<Food />} />
-            <Route path="/schedule" element={<Schedule />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-          <AppNavbar />
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+          <div className="pb-20">
+            <Routes>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/weight" element={<WeightPage />} />
+              <Route path="/food" element={<FoodPage />} />
+              <Route path="/schedule" element={<SchedulePage />} />
+            </Routes>
+          </div>
+          <Navigation />
         </div>
       </BrowserRouter>
     </TooltipProvider>
