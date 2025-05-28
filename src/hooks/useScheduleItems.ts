@@ -10,7 +10,7 @@ export interface ScheduleItem {
   date: string;
   time?: string;
   completed: boolean;
-  repeatFrequency?: 'none' | 'daily' | 'weekly' | 'monthly';
+  repeatFrequency?: 'none' | 'daily' | 'weekly' | 'monthly' | 'alternate';
 }
 
 export const useScheduleItems = () => {
