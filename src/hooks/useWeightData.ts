@@ -2,11 +2,13 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from "@/components/ui/use-toast";
+import { format, parseISO } from 'date-fns';
 
 export interface WeightEntry {
   id?: string;
   date: string;
   weight: number;
+  rawDate?: Date;
 }
 
 export const useWeightData = () => {
@@ -20,21 +22,30 @@ export const useWeightData = () => {
   const fetchWeightData = async () => {
     try {
       setLoading(true);
+      console.log("Fetching weight data...");
+      
       const { data, error } = await supabase
         .from('weight_entries')
         .select('*')
-        .order('date', { ascending: true });
+        .order('date', { ascending: false }); // Most recent first
 
       if (error) {
+        console.error('Error fetching weight data:', error);
         throw error;
       }
 
+      console.log("Weight data fetched successfully:", data?.length || 0, "entries");
+
       // Format the data to match our expected format
-      const formattedData = data.map(entry => ({
-        id: entry.id,
-        date: new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        weight: entry.weight
-      }));
+      const formattedData = (data || []).map(entry => {
+        const rawDate = parseISO(entry.date);
+        return {
+          id: entry.id,
+          date: format(rawDate, 'MMM d'),
+          weight: entry.weight,
+          rawDate: rawDate
+        };
+      });
       
       setWeightData(formattedData);
     } catch (error) {
@@ -51,11 +62,13 @@ export const useWeightData = () => {
   const addWeightEntry = async (date: Date, weight: number) => {
     try {
       const dateStr = date.toISOString().split('T')[0]; // Format as YYYY-MM-DD
-      const displayDateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); // Format as MMM d
+      const displayDateStr = format(date, 'MMM d'); // Format as MMM d
+      
+      console.log("Adding weight entry:", { date: dateStr, weight });
       
       // Check if we already have an entry for this date
       const existingEntryIndex = weightData.findIndex(item => 
-        new Date(item.date).toLocaleDateString() === date.toLocaleDateString()
+        item.rawDate && format(item.rawDate, 'yyyy-MM-dd') === dateStr
       );
       
       if (existingEntryIndex >= 0 && weightData[existingEntryIndex].id) {
@@ -67,14 +80,8 @@ export const useWeightData = () => {
           
         if (error) throw error;
         
-        // Update local state
-        const updatedData = [...weightData];
-        updatedData[existingEntryIndex] = { 
-          ...updatedData[existingEntryIndex], 
-          weight 
-        };
+        console.log("Weight entry updated successfully");
         
-        setWeightData(updatedData);
         toast({
           description: "Weight updated successfully",
         });
@@ -87,24 +94,7 @@ export const useWeightData = () => {
           
         if (error) throw error;
         
-        // Add to local state
-        const newWeightData = [
-          ...weightData,
-          { 
-            id: data[0].id,
-            date: displayDateStr, 
-            weight 
-          }
-        ];
-        
-        // Sort by date
-        newWeightData.sort((a, b) => {
-          const dateA = new Date(a.date);
-          const dateB = new Date(b.date);
-          return dateA.getTime() - dateB.getTime();
-        });
-        
-        setWeightData(newWeightData);
+        console.log("Weight entry added successfully:", data[0]);
         
         toast({
           description: "Weight added successfully",
@@ -123,5 +113,59 @@ export const useWeightData = () => {
     }
   };
 
-  return { weightData, loading, addWeightEntry, refreshWeightData: fetchWeightData };
+  // Group weight data by weeks for accordion display
+  const getWeightDataByWeeks = () => {
+    const weeks: Record<string, WeightEntry[]> = {};
+    
+    weightData.forEach(entry => {
+      if (entry.rawDate) {
+        const weekStart = format(entry.rawDate, 'MMM d, yyyy');
+        const weekKey = `Week of ${weekStart}`;
+        
+        if (!weeks[weekKey]) {
+          weeks[weekKey] = [];
+        }
+        weeks[weekKey].push(entry);
+      }
+    });
+    
+    return Object.entries(weeks).map(([week, entries]) => ({
+      week,
+      entries: entries.sort((a, b) => 
+        (b.rawDate?.getTime() || 0) - (a.rawDate?.getTime() || 0)
+      )
+    }));
+  };
+
+  // Group weight data by months for accordion display
+  const getWeightDataByMonths = () => {
+    const months: Record<string, WeightEntry[]> = {};
+    
+    weightData.forEach(entry => {
+      if (entry.rawDate) {
+        const monthKey = format(entry.rawDate, 'MMM yyyy');
+        
+        if (!months[monthKey]) {
+          months[monthKey] = [];
+        }
+        months[monthKey].push(entry);
+      }
+    });
+    
+    return Object.entries(months).map(([month, entries]) => ({
+      month,
+      entries: entries.sort((a, b) => 
+        (b.rawDate?.getTime() || 0) - (a.rawDate?.getTime() || 0)
+      )
+    }));
+  };
+
+  return { 
+    weightData, 
+    loading, 
+    addWeightEntry, 
+    refreshWeightData: fetchWeightData,
+    getWeightDataByWeeks,
+    getWeightDataByMonths
+  };
 };

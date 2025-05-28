@@ -1,26 +1,30 @@
+
 import { useState, useEffect } from "react";
 import PageContainer from "@/components/layout/PageContainer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import WeightGraph from "@/components/weight/WeightGraph";
-import { Plus, ArrowLeft, ArrowRight, Weight as WeightIcon, Calendar, Edit, Trash2 } from "lucide-react";
+import { Plus, Calendar, Edit, Trash2, Weight as WeightIcon } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
-import { format, parse, isValid } from "date-fns";
+import { format } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useWeightData } from "@/hooks/useWeightData";
 import { supabase } from "@/integrations/supabase/client";
 
 const Weight = () => {
-  const { weightData, addWeightEntry, refreshWeightData } = useWeightData();
+  const { weightData, addWeightEntry, refreshWeightData, getWeightDataByWeeks, getWeightDataByMonths } = useWeightData();
   const [weight, setWeight] = useState("");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [view, setView] = useState<"daily" | "weekly" | "monthly">("daily");
+  const [view, setView] = useState<"daily" | "weekly" | "monthly">("weekly");
+  const [currentGraphDate, setCurrentGraphDate] = useState<Date>(new Date());
   const [editingEntry, setEditingEntry] = useState<{index: number, id?: string, date: string, weight: number} | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [tableView, setTableView] = useState<"all" | "weekly" | "monthly">("weekly");
   
   // Refresh data when component mounts
   useEffect(() => {
@@ -59,19 +63,6 @@ const Weight = () => {
     if (!editingEntry || !editingEntry.id) return;
 
     try {
-      // Get the date object from the display string format
-      let dateObj: Date;
-      try {
-        // Try to parse the date display string
-        dateObj = parse(editingEntry.date, "MMM d", new Date());
-        if (!isValid(dateObj)) {
-          dateObj = new Date(); // Fallback to today if parsing fails
-        }
-      } catch (e) {
-        dateObj = new Date(); // Fallback to today if parsing fails
-      }
-
-      // Update the entry with a direct call to Supabase
       const { error } = await supabase
         .from('weight_entries')
         .update({ weight: editingEntry.weight })
@@ -79,7 +70,6 @@ const Weight = () => {
         
       if (error) throw error;
 
-      // Refresh data from the server
       refreshWeightData();
       
       setDialogOpen(false);
@@ -109,7 +99,6 @@ const Weight = () => {
     }
     
     try {
-      // Delete the entry with a direct call to Supabase
       const { error } = await supabase
         .from('weight_entries')
         .delete()
@@ -117,7 +106,6 @@ const Weight = () => {
         
       if (error) throw error;
 
-      // Refresh data from the server
       refreshWeightData();
       
       toast({
@@ -132,6 +120,9 @@ const Weight = () => {
     }
   };
 
+  const weeklyData = getWeightDataByWeeks();
+  const monthlyData = getWeightDataByMonths();
+
   return (
     <PageContainer>
       <div className="mb-6">
@@ -142,7 +133,7 @@ const Weight = () => {
         <p className="text-muted-foreground">Monitor your weight journey</p>
       </div>
 
-      <Card className="mb-6 border-primary/10">
+      <Card className="mb-6 border-accent/20">
         <CardContent className="pt-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
             <div className="w-full sm:flex-1">
@@ -171,7 +162,7 @@ const Weight = () => {
                 />
               </PopoverContent>
             </Popover>
-            <Button onClick={handleAddWeight} className="w-full sm:w-auto">
+            <Button onClick={handleAddWeight} className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600">
               <Plus className="h-4 w-4 mr-1" />
               Add Weight
             </Button>
@@ -179,7 +170,7 @@ const Weight = () => {
         </CardContent>
       </Card>
       
-      <Card className="border-primary/10 mb-6">
+      <Card className="border-accent/20 mb-6">
         <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
           <CardTitle className="text-lg font-medium">Weight History</CardTitle>
           <div className="flex bg-secondary rounded-lg overflow-hidden">
@@ -187,8 +178,49 @@ const Weight = () => {
               <button
                 key={v}
                 onClick={() => setView(v)}
-                className={`px-3 py-1 text-xs font-medium ${
-                  view === v ? "bg-primary text-white" : "text-muted-foreground"
+                className={`px-3 py-1 text-xs font-medium transition-colors ${
+                  view === v 
+                    ? "bg-orange-500 text-white" 
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {v.charAt(0).toUpperCase() + v.slice(1)}
+              </button>
+            ))}
+          </div>
+        </CardHeader>
+        <CardContent>
+          {weightData.length > 0 ? (
+            <div className="h-64 w-full">
+              <WeightGraph 
+                data={weightData} 
+                view={view} 
+                currentDate={currentGraphDate}
+                onDateChange={setCurrentGraphDate}
+                showNavigation={true}
+              />
+            </div>
+          ) : (
+            <div className="text-center py-12 text-muted-foreground">
+              <p>No weight data recorded yet.</p>
+              <p className="text-sm mt-2">Add your first weight entry above to see your progress.</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="border-accent/20 mb-6">
+        <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+          <CardTitle className="text-lg font-medium">Weight History Table</CardTitle>
+          <div className="flex bg-secondary rounded-lg overflow-hidden">
+            {(["all", "weekly", "monthly"] as const).map((v) => (
+              <button
+                key={v}
+                onClick={() => setTableView(v)}
+                className={`px-3 py-1 text-xs font-medium transition-colors ${
+                  tableView === v 
+                    ? "bg-orange-500 text-white" 
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 {v.charAt(0).toUpperCase() + v.slice(1)}
@@ -199,78 +231,154 @@ const Weight = () => {
         <CardContent>
           {weightData.length > 0 ? (
             <>
-              <div className="h-64 w-full">
-                <WeightGraph data={weightData} view={view} />
-              </div>
-              
-              <div className="mt-4 flex justify-between items-center text-sm">
-                <div className="flex items-center">
-                  <ArrowLeft className="h-4 w-4 mr-1" />
-                  <span>Previous</span>
-                </div>
-                <div className="font-medium">
-                  {view === "daily" && "Daily view"}
-                  {view === "weekly" && "Weekly view"}
-                  {view === "monthly" && "Monthly view"}
-                </div>
-                <div className="flex items-center">
-                  <span>Next</span>
-                  <ArrowRight className="h-4 w-4 ml-1" />
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className="text-center py-12 text-muted-foreground">
-              <p>No weight data recorded yet.</p>
-              <p className="text-sm mt-2">Add your first weight entry above to see your progress.</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              {tableView === "all" && (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Weight</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {weightData.map((entry, index) => (
+                      <TableRow key={entry.id || index}>
+                        <TableCell className="font-medium">{entry.date}</TableCell>
+                        <TableCell>{entry.weight}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-8 w-8 p-0"
+                              onClick={() => handleEditEntry(index)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-8 w-8 p-0 text-destructive hover:text-destructive/80 hover:bg-destructive/10"
+                              onClick={() => handleDeleteEntry(index)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
 
-      <Card className="border-primary/10 mb-6">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg font-medium">Weight History Table</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {weightData.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Weight</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {weightData.map((entry, index) => (
-                  <TableRow key={entry.id || index}>
-                    <TableCell>{entry.date}</TableCell>
-                    <TableCell>{entry.weight}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="h-8 w-8 p-0"
-                          onClick={() => handleEditEntry(index)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="h-8 w-8 p-0 text-destructive hover:text-destructive/80 hover:bg-destructive/10"
-                          onClick={() => handleDeleteEntry(index)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+              {tableView === "weekly" && (
+                <Accordion type="single" collapsible className="w-full">
+                  {weeklyData.map((week, index) => (
+                    <AccordionItem key={index} value={`week-${index}`}>
+                      <AccordionTrigger className="text-sm font-medium">
+                        {week.week} ({week.entries.length} entries)
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Date</TableHead>
+                              <TableHead>Weight</TableHead>
+                              <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {week.entries.map((entry, entryIndex) => {
+                              const originalIndex = weightData.findIndex(item => item.id === entry.id);
+                              return (
+                                <TableRow key={entry.id || entryIndex}>
+                                  <TableCell className="font-medium">{entry.date}</TableCell>
+                                  <TableCell>{entry.weight}</TableCell>
+                                  <TableCell className="text-right">
+                                    <div className="flex justify-end gap-2">
+                                      <Button 
+                                        variant="ghost" 
+                                        size="sm" 
+                                        className="h-8 w-8 p-0"
+                                        onClick={() => handleEditEntry(originalIndex)}
+                                      >
+                                        <Edit className="h-4 w-4" />
+                                      </Button>
+                                      <Button 
+                                        variant="ghost" 
+                                        size="sm" 
+                                        className="h-8 w-8 p-0 text-destructive hover:text-destructive/80 hover:bg-destructive/10"
+                                        onClick={() => handleDeleteEntry(originalIndex)}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))}
+                </Accordion>
+              )}
+
+              {tableView === "monthly" && (
+                <Accordion type="single" collapsible className="w-full">
+                  {monthlyData.map((month, index) => (
+                    <AccordionItem key={index} value={`month-${index}`}>
+                      <AccordionTrigger className="text-sm font-medium">
+                        {month.month} ({month.entries.length} entries)
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Date</TableHead>
+                              <TableHead>Weight</TableHead>
+                              <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {month.entries.map((entry, entryIndex) => {
+                              const originalIndex = weightData.findIndex(item => item.id === entry.id);
+                              return (
+                                <TableRow key={entry.id || entryIndex}>
+                                  <TableCell className="font-medium">{entry.date}</TableCell>
+                                  <TableCell>{entry.weight}</TableCell>
+                                  <TableCell className="text-right">
+                                    <div className="flex justify-end gap-2">
+                                      <Button 
+                                        variant="ghost" 
+                                        size="sm" 
+                                        className="h-8 w-8 p-0"
+                                        onClick={() => handleEditEntry(originalIndex)}
+                                      >
+                                        <Edit className="h-4 w-4" />
+                                      </Button>
+                                      <Button 
+                                        variant="ghost" 
+                                        size="sm" 
+                                        className="h-8 w-8 p-0 text-destructive hover:text-destructive/80 hover:bg-destructive/10"
+                                        onClick={() => handleDeleteEntry(originalIndex)}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))}
+                </Accordion>
+              )}
+            </>
           ) : (
             <div className="text-center py-6 text-muted-foreground">
               <p>No weight entries recorded yet.</p>
@@ -310,7 +418,7 @@ const Weight = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleUpdateEntry}>Save Changes</Button>
+            <Button onClick={handleUpdateEntry} className="bg-orange-500 hover:bg-orange-600">Save Changes</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

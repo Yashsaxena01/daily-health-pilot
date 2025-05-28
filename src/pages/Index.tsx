@@ -18,15 +18,18 @@ import { useEliminationDiet } from "@/hooks/useEliminationDiet";
 
 const Index = () => {
   const { weightData, addWeightEntry, refreshWeightData } = useWeightData();
-  const { scheduleItems, getTodaysItems, refreshScheduleItems, updateScheduleItem } = useScheduleItems();
+  const { getTodaysItems, refreshScheduleItems, updateScheduleItem } = useScheduleItems();
   const { getTodaysFood, refreshEliminationDiet } = useEliminationDiet();
   
   const [weight, setWeight] = useState("");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [weightView, setWeightView] = useState<"daily" | "weekly" | "monthly">("weekly");
+  const [currentGraphDate, setCurrentGraphDate] = useState<Date>(new Date());
 
   // Refresh data on page load and set up periodic refresh
   useEffect(() => {
     const refreshAllData = async () => {
+      console.log("Refreshing all data...");
       await Promise.all([
         refreshWeightData(),
         refreshScheduleItems(),
@@ -36,8 +39,8 @@ const Index = () => {
     
     refreshAllData();
     
-    // Set up periodic refresh every 5 seconds to catch updates
-    const interval = setInterval(refreshAllData, 5000);
+    // Set up periodic refresh every 10 seconds
+    const interval = setInterval(refreshAllData, 10000);
     
     return () => clearInterval(interval);
   }, [refreshWeightData, refreshScheduleItems, refreshEliminationDiet]);
@@ -64,6 +67,8 @@ const Index = () => {
   const handleToggleActivity = async (item: any) => {
     if (!item.id) return;
     
+    console.log("Toggling activity:", item.id, "from", item.completed, "to", !item.completed);
+    
     const success = await updateScheduleItem(item.id, { 
       completed: !item.completed 
     });
@@ -72,6 +77,10 @@ const Index = () => {
       toast({
         description: item.completed ? "Activity marked as incomplete" : "Activity completed!",
       });
+      // Force refresh after a short delay to ensure data is updated
+      setTimeout(() => {
+        refreshScheduleItems();
+      }, 500);
     }
   };
 
@@ -95,11 +104,28 @@ const Index = () => {
               <Weight className="mr-2 h-5 w-5" />
               Weight Tracking
             </CardTitle>
-            <Link to="/weight">
-              <Button variant="ghost" size="sm" className="gap-1">
-                Details <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
+            <div className="flex items-center gap-2">
+              <div className="flex bg-secondary rounded-lg overflow-hidden">
+                {(["daily", "weekly", "monthly"] as const).map((v) => (
+                  <button
+                    key={v}
+                    onClick={() => setWeightView(v)}
+                    className={`px-2 py-1 text-xs font-medium transition-colors ${
+                      weightView === v 
+                        ? "bg-orange-500 text-white" 
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {v.charAt(0).toUpperCase() + v.slice(1)}
+                  </button>
+                ))}
+              </div>
+              <Link to="/weight">
+                <Button variant="ghost" size="sm" className="gap-1">
+                  Details <ArrowRight className="h-4 w-4" />
+                </Button>
+              </Link>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="flex flex-col gap-4">
@@ -142,7 +168,13 @@ const Index = () => {
               
               {weightData.length > 0 ? (
                 <div className="h-44">
-                  <WeightGraph data={weightData} />
+                  <WeightGraph 
+                    data={weightData} 
+                    view={weightView}
+                    currentDate={currentGraphDate}
+                    onDateChange={setCurrentGraphDate}
+                    showNavigation={true}
+                  />
                 </div>
               ) : (
                 <div className="h-44 flex items-center justify-center text-muted-foreground flex-col">

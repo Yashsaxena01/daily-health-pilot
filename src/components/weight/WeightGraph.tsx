@@ -1,64 +1,130 @@
 
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, TooltipProps } from "recharts";
+import { format, addDays, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addWeeks, subWeeks, addMonths, subMonths } from "date-fns";
 
 interface WeightGraphProps {
   data: {
     id?: string;
     date: string;
     weight: number;
+    rawDate?: Date;
   }[];
   view?: "daily" | "weekly" | "monthly";
+  currentDate?: Date;
+  onDateChange?: (date: Date) => void;
+  showNavigation?: boolean;
 }
 
-const WeightGraph = ({ data, view = "daily" }: WeightGraphProps) => {
-  // Process data based on view
+const WeightGraph = ({ 
+  data, 
+  view = "weekly", 
+  currentDate = new Date(),
+  onDateChange,
+  showNavigation = false
+}: WeightGraphProps) => {
+  const today = format(new Date(), "MMM d");
+  
+  // Process data based on view and current date
   const processedData = (() => {
-    if (view === "daily" || !data || data.length === 0) {
-      return data;
+    if (!data || data.length === 0) return [];
+    
+    let filteredData = data;
+    
+    // Filter data based on view and current date
+    if (view === "weekly" && showNavigation) {
+      const weekStart = startOfWeek(currentDate);
+      const weekEnd = endOfWeek(currentDate);
+      filteredData = data.filter(item => {
+        const itemDate = item.rawDate || new Date(item.date);
+        return itemDate >= weekStart && itemDate <= weekEnd;
+      });
+    } else if (view === "monthly" && showNavigation) {
+      const monthStart = startOfMonth(currentDate);
+      const monthEnd = endOfMonth(currentDate);
+      filteredData = data.filter(item => {
+        const itemDate = item.rawDate || new Date(item.date);
+        return itemDate >= monthStart && itemDate <= monthEnd;
+      });
+    }
+    
+    if (view === "daily") {
+      return filteredData;
     }
     
     if (view === "weekly") {
       // Group by week and calculate average
-      const weeklyData: Record<string, { sum: number; count: number }> = {};
-      data.forEach(item => {
-        // Simple week grouping - in a real app would use date-fns getWeek
-        const weekParts = item.date.split(" ");
-        const weekLabel = `Week of ${weekParts[0]}`;
+      const weeklyData: Record<string, { sum: number; count: number; dates: string[] }> = {};
+      filteredData.forEach(item => {
+        const itemDate = item.rawDate || new Date(item.date);
+        const weekStart = startOfWeek(itemDate);
+        const weekLabel = format(weekStart, "MMM d");
         
         if (!weeklyData[weekLabel]) {
-          weeklyData[weekLabel] = { sum: 0, count: 0 };
+          weeklyData[weekLabel] = { sum: 0, count: 0, dates: [] };
         }
         weeklyData[weekLabel].sum += item.weight;
         weeklyData[weekLabel].count += 1;
+        weeklyData[weekLabel].dates.push(item.date);
       });
       
       return Object.keys(weeklyData).map(week => ({
         date: week,
-        weight: parseFloat((weeklyData[week].sum / weeklyData[week].count).toFixed(1))
+        weight: parseFloat((weeklyData[week].sum / weeklyData[week].count).toFixed(1)),
+        isToday: weeklyData[week].dates.includes(today)
       }));
     }
     
     if (view === "monthly") {
       // Group by month
-      const monthlyData: Record<string, { sum: number; count: number }> = {};
-      data.forEach(item => {
-        const month = item.date.split(" ")[0]; // Extract month
+      const monthlyData: Record<string, { sum: number; count: number; dates: string[] }> = {};
+      filteredData.forEach(item => {
+        const itemDate = item.rawDate || new Date(item.date);
+        const month = format(itemDate, "MMM yyyy");
         
         if (!monthlyData[month]) {
-          monthlyData[month] = { sum: 0, count: 0 };
+          monthlyData[month] = { sum: 0, count: 0, dates: [] };
         }
         monthlyData[month].sum += item.weight;
         monthlyData[month].count += 1;
+        monthlyData[month].dates.push(item.date);
       });
       
       return Object.keys(monthlyData).map(month => ({
         date: month,
-        weight: parseFloat((monthlyData[month].sum / monthlyData[month].count).toFixed(1))
+        weight: parseFloat((monthlyData[month].sum / monthlyData[month].count).toFixed(1)),
+        isToday: monthlyData[month].dates.includes(today)
       }));
     }
     
-    return data;
+    return filteredData.map(item => ({
+      ...item,
+      isToday: item.date === today
+    }));
   })();
+
+  const handlePrevious = () => {
+    if (!onDateChange) return;
+    
+    if (view === "daily") {
+      onDateChange(subDays(currentDate, 1));
+    } else if (view === "weekly") {
+      onDateChange(subWeeks(currentDate, 1));
+    } else if (view === "monthly") {
+      onDateChange(subMonths(currentDate, 1));
+    }
+  };
+
+  const handleNext = () => {
+    if (!onDateChange) return;
+    
+    if (view === "daily") {
+      onDateChange(addDays(currentDate, 1));
+    } else if (view === "weekly") {
+      onDateChange(addWeeks(currentDate, 1));
+    } else if (view === "monthly") {
+      onDateChange(addMonths(currentDate, 1));
+    }
+  };
 
   const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>) => {
     if (active && payload && payload.length) {
@@ -72,36 +138,77 @@ const WeightGraph = ({ data, view = "daily" }: WeightGraphProps) => {
     return null;
   };
 
+  const CustomDot = (props: any) => {
+    const { cx, cy, payload } = props;
+    const isToday = payload?.isToday;
+    
+    return (
+      <circle
+        cx={cx}
+        cy={cy}
+        r={isToday ? 6 : 4}
+        fill={isToday ? "#ea580c" : "#f97316"}
+        stroke="white"
+        strokeWidth={2}
+        className={isToday ? "animate-pulse" : ""}
+      />
+    );
+  };
+
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <LineChart
-        data={processedData}
-        margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
-      >
-        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e5e5" />
-        <XAxis 
-          dataKey="date" 
-          tick={{ fontSize: 12 }} 
-          tickMargin={10}
-          axisLine={false}
-        />
-        <YAxis 
-          domain={['auto', 'auto']} 
-          tick={{ fontSize: 12 }}
-          tickMargin={10}
-          axisLine={false}
-        />
-        <Tooltip content={<CustomTooltip />} />
-        <Line
-          type="monotone"
-          dataKey="weight"
-          stroke="#333333"
-          strokeWidth={2}
-          dot={{ r: 4, fill: "#333333", strokeWidth: 2, stroke: "white" }}
-          activeDot={{ r: 6, fill: "#333333", strokeWidth: 2, stroke: "white" }}
-        />
-      </LineChart>
-    </ResponsiveContainer>
+    <div className="w-full h-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart
+          data={processedData}
+          margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+        >
+          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e5e5" />
+          <XAxis 
+            dataKey="date" 
+            tick={{ fontSize: 12 }} 
+            tickMargin={10}
+            axisLine={false}
+          />
+          <YAxis 
+            domain={['auto', 'auto']} 
+            tick={{ fontSize: 12 }}
+            tickMargin={10}
+            axisLine={false}
+          />
+          <Tooltip content={<CustomTooltip />} />
+          <Line
+            type="monotone"
+            dataKey="weight"
+            stroke="#f97316"
+            strokeWidth={2}
+            dot={<CustomDot />}
+            activeDot={{ r: 8, fill: "#ea580c", strokeWidth: 2, stroke: "white" }}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+      
+      {showNavigation && (
+        <div className="flex justify-between items-center mt-2 text-sm">
+          <button 
+            onClick={handlePrevious}
+            className="flex items-center text-muted-foreground hover:text-foreground transition-colors"
+          >
+            ← Previous
+          </button>
+          <div className="font-medium text-center">
+            {view === "weekly" && format(currentDate, "MMM d, yyyy")}
+            {view === "monthly" && format(currentDate, "MMM yyyy")}
+            {view === "daily" && format(currentDate, "MMM d, yyyy")}
+          </div>
+          <button 
+            onClick={handleNext}
+            className="flex items-center text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Next →
+          </button>
+        </div>
+      )}
+    </div>
   );
 };
 
