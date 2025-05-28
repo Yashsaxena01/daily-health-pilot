@@ -14,16 +14,28 @@ export interface WeightEntry {
 export const useWeightData = () => {
   const [weightData, setWeightData] = useState<WeightEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchWeightData();
   }, []);
 
-  const fetchWeightData = async () => {
+  const fetchWeightData = async (retryCount = 0) => {
     try {
       setLoading(true);
-      console.log("Fetching weight data...");
+      setError(null);
+      console.log(`Fetching weight data... (attempt ${retryCount + 1})`);
       
+      // Test Supabase connection first
+      const { error: connectionError } = await supabase
+        .from('weight_entries')
+        .select('count', { count: 'exact', head: true });
+      
+      if (connectionError) {
+        console.error('Connection test failed:', connectionError);
+        throw new Error(`Database connection failed: ${connectionError.message}`);
+      }
+
       const { data, error } = await supabase
         .from('weight_entries')
         .select('*')
@@ -31,27 +43,42 @@ export const useWeightData = () => {
 
       if (error) {
         console.error('Error fetching weight data:', error);
-        throw error;
+        throw new Error(`Failed to fetch weight data: ${error.message}`);
       }
 
       console.log("Weight data fetched successfully:", data?.length || 0, "entries");
 
       // Format the data to match our expected format
       const formattedData = (data || []).map(entry => {
-        const rawDate = parseISO(entry.date);
-        return {
-          id: entry.id,
-          date: format(rawDate, 'MMM d'),
-          weight: entry.weight,
-          rawDate: rawDate
-        };
-      });
+        try {
+          const rawDate = parseISO(entry.date);
+          return {
+            id: entry.id,
+            date: format(rawDate, 'MMM d'),
+            weight: entry.weight,
+            rawDate: rawDate
+          };
+        } catch (formatError) {
+          console.error('Error formatting entry:', entry, formatError);
+          return null;
+        }
+      }).filter(Boolean) as WeightEntry[];
       
       setWeightData(formattedData);
-    } catch (error) {
-      console.error('Error fetching weight data:', error);
+      setError(null);
+    } catch (error: any) {
+      console.error('Error in fetchWeightData:', error);
+      setError(error.message || 'Failed to load weight data');
+      
+      // Retry logic for connection issues
+      if (retryCount < 2 && (error.message?.includes('connection') || error.message?.includes('network'))) {
+        console.log(`Retrying in ${(retryCount + 1) * 1000}ms...`);
+        setTimeout(() => fetchWeightData(retryCount + 1), (retryCount + 1) * 1000);
+        return;
+      }
+      
       toast({
-        description: "Failed to load weight data",
+        description: error.message || "Failed to load weight data",
         variant: "destructive",
       });
     } finally {
@@ -160,12 +187,117 @@ export const useWeightData = () => {
     }));
   };
 
+  // Get data for comparative weekly/monthly views
+  const getComparativeWeeklyData = () => {
+    const weeklyData: Record<string, WeightEntry[]> = {};
+    
+    weightData.forEach(entry => {
+      if (entry.rawDate) {
+        const weekKey = format(entry.rawDate, "'Week of' MMM d");
+        if (!weeklyData[weekKey]) {
+          weeklyData[weekKey] = [];
+        }
+        weeklyData[weekKey].push(entry);
+      }
+    });
+    
+    // Convert to array and get last 8 weeks
+    const sortedWeeks = Object.entries(weeklyData)
+      .map(([week, entries]) => ({
+        date: week,
+        weight: entries.reduce((sum, entry) => sum + entry.weight, 0) / entries.length,
+        isToday: entries.some(entry => 
+          entry.rawDate && format(entry.rawDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
+        )
+      }))
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      .slice(-8);
+    
+    return sortedWeeks;
+  };
+
+  const getComparativeMonthlyData = () => {
+    const monthlyData: Record<string, WeightEntry[]> = {};
+    
+    weightData.forEach(entry => {
+      if (entry.rawDate) {
+        const monthKey = format(entry.rawDate, 'MMM yyyy');
+        if (!monthlyData[monthKey]) {
+          monthlyData[monthKey] = [];
+        }
+        monthlyData[monthKey].push(entry);
+      }
+    });
+    
+    // Convert to array and get last 6 months
+    const sortedMonths = Object.entries(monthlyData)
+      .map(([month, entries]) => ({
+        date: month,
+        weight: entries.reduce((sum, entry) => sum + entry.weight, 0) / entries.length,
+        isToday: entries.some(entry => 
+          entry.rawDate && format(entry.rawDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
+        )
+      }))
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      .slice(-6);
+    
+    return sortedMonths;
+  };
+
   return { 
     weightData, 
     loading, 
-    addWeightEntry, 
+    error,
+    addWeightEntry: async (date: Date, weight: number) => {
+      try {
+        const dateStr = date.toISOString().split('T')[0];
+        
+        // Check if we already have an entry for this date
+        const existingEntryIndex = weightData.findIndex(item => 
+          item.rawDate && format(item.rawDate, 'yyyy-MM-dd') === dateStr
+        );
+        
+        if (existingEntryIndex >= 0 && weightData[existingEntryIndex].id) {
+          // Update existing entry
+          const { error } = await supabase
+            .from('weight_entries')
+            .update({ weight })
+            .eq('id', weightData[existingEntryIndex].id);
+            
+          if (error) throw error;
+          
+          toast({
+            description: "Weight updated successfully",
+          });
+        } else {
+          // Insert new entry
+          const { data, error } = await supabase
+            .from('weight_entries')
+            .insert({ date: dateStr, weight })
+            .select();
+            
+          if (error) throw error;
+          
+          toast({
+            description: "Weight added successfully",
+          });
+        }
+        
+        // Refresh data from server
+        await fetchWeightData();
+        
+      } catch (error: any) {
+        console.error('Error adding weight entry:', error);
+        toast({
+          description: error.message || "Failed to add weight entry",
+          variant: "destructive",
+        });
+      }
+    },
     refreshWeightData: fetchWeightData,
     getWeightDataByWeeks,
-    getWeightDataByMonths
+    getWeightDataByMonths,
+    getComparativeWeeklyData,
+    getComparativeMonthlyData
   };
 };

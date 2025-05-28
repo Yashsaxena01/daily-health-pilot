@@ -9,8 +9,8 @@ export interface Food {
   introduction_date?: string;
   reaction?: string;
   reaction_level?: 'none' | 'mild' | 'severe';
-  scheduled_date?: string;  // Now supported by the database
-  order?: number;          // Now supported by the database
+  scheduled_date?: string;
+  order?: number;
   category_id?: string;
 }
 
@@ -19,7 +19,7 @@ export interface FoodCategory {
   name: string;
   expanded: boolean;
   foods: Food[];
-  order?: number;         // Now supported by the database
+  order?: number;
   user_id?: string;
   created_at?: string;
   updated_at?: string;
@@ -28,14 +28,36 @@ export interface FoodCategory {
 export const useEliminationDiet = () => {
   const [categories, setCategories] = useState<FoodCategory[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchEliminationDiet();
   }, []);
 
-  const fetchEliminationDiet = async () => {
+  const fetchEliminationDiet = async (retryCount = 0) => {
     try {
       setLoading(true);
+      setError(null);
+      console.log(`Fetching elimination diet data... (attempt ${retryCount + 1})`);
+      
+      // Test connection to both tables
+      const { error: categoriesConnectionError } = await supabase
+        .from('food_categories')
+        .select('count', { count: 'exact', head: true });
+      
+      if (categoriesConnectionError) {
+        console.error('Food categories connection test failed:', categoriesConnectionError);
+        throw new Error(`Database connection failed: ${categoriesConnectionError.message}`);
+      }
+
+      const { error: foodsConnectionError } = await supabase
+        .from('foods')
+        .select('count', { count: 'exact', head: true });
+      
+      if (foodsConnectionError) {
+        console.error('Foods connection test failed:', foodsConnectionError);
+        throw new Error(`Database connection failed: ${foodsConnectionError.message}`);
+      }
       
       // Fetch categories
       const { data: categoriesData, error: categoriesError } = await supabase
@@ -44,7 +66,10 @@ export const useEliminationDiet = () => {
         .order('order', { ascending: true, nullsFirst: false })
         .order('name');
 
-      if (categoriesError) throw categoriesError;
+      if (categoriesError) {
+        console.error('Error fetching categories:', categoriesError);
+        throw new Error(`Failed to fetch categories: ${categoriesError.message}`);
+      }
 
       // Fetch foods
       const { data: foodsData, error: foodsError } = await supabase
@@ -52,15 +77,23 @@ export const useEliminationDiet = () => {
         .select('*')
         .order('order', { ascending: true, nullsFirst: false });
 
-      if (foodsError) throw foodsError;
+      if (foodsError) {
+        console.error('Error fetching foods:', foodsError);
+        throw new Error(`Failed to fetch foods: ${foodsError.message}`);
+      }
+
+      console.log("Elimination diet data fetched successfully:", {
+        categories: categoriesData?.length || 0,
+        foods: foodsData?.length || 0
+      });
 
       // Organize foods by category
-      const organizedData = categoriesData.map(category => ({
+      const organizedData = (categoriesData || []).map(category => ({
         id: category.id,
         name: category.name,
         expanded: category.expanded,
         order: category.order,
-        foods: foodsData
+        foods: (foodsData || [])
           .filter(food => food.category_id === category.id)
           .map(food => ({
             id: food.id,
@@ -76,13 +109,25 @@ export const useEliminationDiet = () => {
       }));
 
       setCategories(organizedData);
+      setError(null);
       
-      // Once data is loaded, update scheduled dates if needed
-      updateScheduledDates();
-    } catch (error) {
+      // Update scheduled dates if needed
+      if (organizedData.length > 0) {
+        updateScheduledDates(organizedData);
+      }
+    } catch (error: any) {
       console.error('Error fetching elimination diet data:', error);
+      setError(error.message || 'Failed to load elimination diet data');
+      
+      // Retry logic for connection issues
+      if (retryCount < 2 && (error.message?.includes('connection') || error.message?.includes('network'))) {
+        console.log(`Retrying in ${(retryCount + 1) * 1000}ms...`);
+        setTimeout(() => fetchEliminationDiet(retryCount + 1), (retryCount + 1) * 1000);
+        return;
+      }
+      
       toast({
-        description: "Failed to load elimination diet data",
+        description: error.message || "Failed to load elimination diet data",
         variant: "destructive",
       });
     } finally {
@@ -90,44 +135,48 @@ export const useEliminationDiet = () => {
     }
   };
 
-  const updateScheduledDates = async () => {
-    const allFoods: {id: string, categoryId: string}[] = [];
-    
-    // Collect all non-introduced foods in their display order
-    categories.forEach(category => {
-      category.foods
-        .filter(food => !food.introduced)
-        .forEach(food => {
-          if (food.id) {
-            allFoods.push({
-              id: food.id,
-              categoryId: category.id || ""
-            });
-          }
-        });
-    });
-    
-    // Calculate scheduled dates, starting with today
-    const today = new Date();
-    const updates: {id: string, date: string}[] = [];
-    
-    allFoods.forEach((food, index) => {
-      const scheduledDate = new Date(today);
-      scheduledDate.setDate(today.getDate() + index);
-      
-      updates.push({
-        id: food.id,
-        date: scheduledDate.toISOString().split('T')[0]
-      });
-    });
-    
-    // Batch update in database
+  const updateScheduledDates = async (currentCategories = categories) => {
     try {
+      const allFoods: {id: string, categoryId: string}[] = [];
+      
+      // Collect all non-introduced foods in their display order
+      currentCategories.forEach(category => {
+        category.foods
+          .filter(food => !food.introduced)
+          .forEach(food => {
+            if (food.id) {
+              allFoods.push({
+                id: food.id,
+                categoryId: category.id || ""
+              });
+            }
+          });
+      });
+      
+      // Calculate scheduled dates, starting with today
+      const today = new Date();
+      const updates: {id: string, date: string}[] = [];
+      
+      allFoods.forEach((food, index) => {
+        const scheduledDate = new Date(today);
+        scheduledDate.setDate(today.getDate() + index);
+        
+        updates.push({
+          id: food.id,
+          date: scheduledDate.toISOString().split('T')[0]
+        });
+      });
+      
+      // Batch update in database
       for (const update of updates) {
-        await supabase
+        const { error } = await supabase
           .from('foods')
           .update({ scheduled_date: update.date })
           .eq('id', update.id);
+          
+        if (error) {
+          console.error('Error updating scheduled date for food:', update.id, error);
+        }
       }
       
       // Update local state
@@ -262,14 +311,13 @@ export const useEliminationDiet = () => {
         description: `Added category: ${name}`,
       });
 
-      // Update scheduled dates
       await updateScheduledDates();
       
       return data[0].id;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding category:', error);
       toast({
-        description: "Failed to add category",
+        description: error.message || "Failed to add category",
         variant: "destructive",
       });
     }
@@ -395,10 +443,10 @@ export const useEliminationDiet = () => {
       await updateScheduledDates();
 
       return data[0].id;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding food:', error);
       toast({
-        description: "Failed to add food",
+        description: error.message || "Failed to add food",
         variant: "destructive",
       });
     }
@@ -413,7 +461,7 @@ export const useEliminationDiet = () => {
       const dbUpdates: any = {
         name: updates.name,
         introduced: updates.introduced,
-        introduction_date: updates.introduced && !updates.introduction_date 
+        introduction_date: updates.introduced && !updates.introduced_date 
           ? new Date().toISOString().split('T')[0]
           : updates.introduction_date,
         reaction: updates.reaction,
@@ -462,10 +510,10 @@ export const useEliminationDiet = () => {
       if (updates.introduced !== undefined) {
         await updateScheduledDates();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating food:', error);
       toast({
-        description: "Failed to update food",
+        description: error.message || "Failed to update food",
         variant: "destructive",
       });
     }
@@ -562,10 +610,10 @@ export const useEliminationDiet = () => {
       
       // Update scheduled dates
       await updateScheduledDates();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error marking food as introduced:', error);
       toast({
-        description: "Failed to update food status",
+        description: error.message || "Failed to update food status",
         variant: "destructive",
       });
     }
@@ -593,10 +641,10 @@ export const useEliminationDiet = () => {
       }
       
       await markFoodIntroduced(categoryId, foodId, reactionLevel, reactionNotes);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error marking food as introduced:', error);
       toast({
-        description: "Failed to update food status",
+        description: error.message || "Failed to update food status",
         variant: "destructive",
       });
     }
@@ -699,7 +747,40 @@ export const useEliminationDiet = () => {
   return {
     categories,
     loading,
-    addCategory,
+    error,
+    addCategory: async (name: string) => {
+      try {
+        const maxOrder = categories.reduce((max, cat) => Math.max(max, cat.order || 0), -1);
+        
+        const { data, error } = await supabase
+          .from('food_categories')
+          .insert({ name, expanded: true, order: maxOrder + 1 })
+          .select();
+
+        if (error) throw error;
+
+        setCategories(prev => [...prev, {
+          id: data[0].id,
+          name,
+          expanded: true,
+          order: maxOrder + 1,
+          foods: []
+        }]);
+
+        toast({
+          description: `Added category: ${name}`,
+        });
+
+        await updateScheduledDates();
+        return data[0].id;
+      } catch (error: any) {
+        console.error('Error adding category:', error);
+        toast({
+          description: error.message || "Failed to add category",
+          variant: "destructive",
+        });
+      }
+    },
     updateCategory,
     deleteCategory,
     toggleCategoryExpanded,

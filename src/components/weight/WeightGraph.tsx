@@ -13,6 +13,11 @@ interface WeightGraphProps {
   currentDate?: Date;
   onDateChange?: (date: Date) => void;
   showNavigation?: boolean;
+  comparativeData?: {
+    date: string;
+    weight: number;
+    isToday?: boolean;
+  }[];
 }
 
 const WeightGraph = ({ 
@@ -20,12 +25,17 @@ const WeightGraph = ({
   view = "weekly", 
   currentDate = new Date(),
   onDateChange,
-  showNavigation = false
+  showNavigation = false,
+  comparativeData
 }: WeightGraphProps) => {
   const today = format(new Date(), "MMM d");
   
-  // Process data based on view and current date
+  // Use comparative data if provided, otherwise process data based on view
   const processedData = (() => {
+    if (comparativeData && (view === "weekly" || view === "monthly")) {
+      return comparativeData;
+    }
+
     if (!data || data.length === 0) return [];
     
     let filteredData = data;
@@ -48,51 +58,9 @@ const WeightGraph = ({
     }
     
     if (view === "daily") {
-      return filteredData;
-    }
-    
-    if (view === "weekly") {
-      // Group by week and calculate average
-      const weeklyData: Record<string, { sum: number; count: number; dates: string[] }> = {};
-      filteredData.forEach(item => {
-        const itemDate = item.rawDate || new Date(item.date);
-        const weekStart = startOfWeek(itemDate);
-        const weekLabel = format(weekStart, "MMM d");
-        
-        if (!weeklyData[weekLabel]) {
-          weeklyData[weekLabel] = { sum: 0, count: 0, dates: [] };
-        }
-        weeklyData[weekLabel].sum += item.weight;
-        weeklyData[weekLabel].count += 1;
-        weeklyData[weekLabel].dates.push(item.date);
-      });
-      
-      return Object.keys(weeklyData).map(week => ({
-        date: week,
-        weight: parseFloat((weeklyData[week].sum / weeklyData[week].count).toFixed(1)),
-        isToday: weeklyData[week].dates.includes(today)
-      }));
-    }
-    
-    if (view === "monthly") {
-      // Group by month
-      const monthlyData: Record<string, { sum: number; count: number; dates: string[] }> = {};
-      filteredData.forEach(item => {
-        const itemDate = item.rawDate || new Date(item.date);
-        const month = format(itemDate, "MMM yyyy");
-        
-        if (!monthlyData[month]) {
-          monthlyData[month] = { sum: 0, count: 0, dates: [] };
-        }
-        monthlyData[month].sum += item.weight;
-        monthlyData[month].count += 1;
-        monthlyData[month].dates.push(item.date);
-      });
-      
-      return Object.keys(monthlyData).map(month => ({
-        date: month,
-        weight: parseFloat((monthlyData[month].sum / monthlyData[month].count).toFixed(1)),
-        isToday: monthlyData[month].dates.includes(today)
+      return filteredData.map(item => ({
+        ...item,
+        isToday: item.date === today
       }));
     }
     
@@ -131,7 +99,7 @@ const WeightGraph = ({
       return (
         <div className="bg-white p-2 border border-gray-200 shadow-sm rounded-md">
           <p className="font-medium">{label}</p>
-          <p className="text-sm">{`Weight: ${payload[0].value}`}</p>
+          <p className="text-sm">{`Weight: ${payload[0].value?.toFixed(1)} lbs`}</p>
         </div>
       );
     }
